@@ -4,11 +4,17 @@ else()
     set(OPENSRX_LIBRARY_TYPE SHARED)
 endif()
 
-add_library(opensrx ${OPENSRX_LIBRARY_TYPE}
+add_library(OpenSRX ${OPENSRX_LIBRARY_TYPE}
     app.cpp
 )
 
-target_include_directories(opensrx
+target_link_libraries(OpenSRX
+    PUBLIC
+        asio::asio
+    spdlog::spdlog_header_only
+)
+
+target_include_directories(OpenSRX
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
     PRIVATE
@@ -16,7 +22,7 @@ target_include_directories(opensrx
 )
 
 if(NOT BUILD_STATIC_LIB)
-    set_target_properties(opensrx PROPERTIES
+    set_target_properties(OpenSRX PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
     )

@@ -1,7 +1,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "opensrx/api.hpp"
+#include "OpenSRX/API.hpp"
 
 using ::testing::HasSubstr;
 

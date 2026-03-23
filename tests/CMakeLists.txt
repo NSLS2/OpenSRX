@@ -10,16 +10,15 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(opensrx_tests
+add_executable(TestOpenSRX
     TestOpenSRX.cpp
     app_test.cpp
 )
 
-target_link_libraries(opensrx_tests
+target_link_libraries(TestOpenSRX
     PRIVATE
-        opensrx
+        OpenSRX
         GTest::gtest
         GTest::gmock
-        GTest::gtest_main
 )
-gtest_discover_tests(opensrx_tests)
+gtest_discover_tests(TestOpenSRX)

@@ -1,8 +1,8 @@
-add_executable(opensrx_example
-    hello_opensrx.cpp
+add_executable(VersionInfo
+    VersionInfo.cpp
 )
 
-target_link_libraries(opensrx_example
+target_link_libraries(VersionInfo
     PRIVATE
-        opensrx
+        OpenSRX
 )

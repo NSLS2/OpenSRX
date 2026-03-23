@@ -29,3 +29,11 @@ cmake -S . -B build -DBUILD_EXAMPLES=OFF
 ## Test Dependencies
 
 Tests use CMake `FetchContent` to download GoogleTest and GoogleMock version `1.17.0` during configure.
+
+## Networking Dependency
+
+The project uses standalone header-only Asio via CMake `FetchContent`, currently pinned to version `1.30.2`.
+
+## Logging Dependency
+
+The project uses `spdlog` via CMake `FetchContent`, currently pinned to version `1.15.3`.

@@ -1,7 +1,7 @@
 #include <tuple>
 
-#include "opensrx/api.hpp"
-#include "opensrx/version.hpp"
+#include "OpenSRX/API.hpp"
+#include "OpenSRX/version.hpp"
 
 namespace OpenSRX {
 
