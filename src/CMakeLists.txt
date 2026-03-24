@@ -15,7 +15,8 @@ add_library(OpenSRX ${OPENSRX_LIBRARY_TYPE}
 target_link_libraries(OpenSRX
     PUBLIC
         asio::asio
-    spdlog::spdlog_header_only
+        spdlog::spdlog_header_only
+        fineftp::server
 )
 
 target_include_directories(OpenSRX

@@ -30,6 +30,12 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
+FetchContent_Declare(
+    fineftp
+    URL https://github.com/eclipse-ecal/fineftp-server/archive/refs/tags/v1.3.4.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
 FetchContent_GetProperties(asio)
 if(NOT asio_POPULATED)
     if(POLICY CMP0169)
@@ -39,6 +45,10 @@ if(NOT asio_POPULATED)
 endif()
 
 FetchContent_MakeAvailable(spdlog)
+
+# Set asio_INCLUDE_DIR so fineftp's Findasio.cmake finds our already-fetched Asio headers.
+set(asio_INCLUDE_DIR "${asio_SOURCE_DIR}/asio/include" CACHE PATH "" FORCE)
+FetchContent_MakeAvailable(fineftp)
 
 add_library(asio_headers INTERFACE)
 add_library(asio::asio ALIAS asio_headers)

@@ -2,15 +2,20 @@
 #include <string>
 #include <tuple>
 
-std::string extractResponse(const std::string& response, const std::string& command) {
-    if (response.rfind("OK", 0) == 0) {
-        return response.substr(2); // Remove "OK" prefix
-    } else {
-
+std::string stripEcho(const std::string& response, const std::string& command) {
+    // Strip the trailing \r from the command for prefix matching.
+    std::string cmd = command;
+    if (!cmd.empty() && cmd.back() == '\r') {
+        cmd.pop_back();
     }
 
-    if (response.rfind(command, 0) == 0) {
-        return response.substr(command.size());
+    if (response.rfind(cmd, 0) == 0) {
+        auto pos = cmd.size();
+        // Skip a comma separator between the echo and the payload.
+        if (pos < response.size() && response[pos] == ',') {
+            ++pos;
+        }
+        return response.substr(pos);
     }
     return response;
 }

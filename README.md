@@ -37,3 +37,7 @@ The project uses standalone header-only Asio via CMake `FetchContent`, currently
 ## Logging Dependency
 
 The project uses `spdlog` via CMake `FetchContent`, currently pinned to version `1.15.3`.
+
+## FTP Dependency
+
+The project uses `fineftp-server` via CMake `FetchContent`, currently pinned to version `1.3.4`, for FTP-based image readback from the scanner.
