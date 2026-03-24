@@ -6,9 +6,9 @@
 namespace OpenSRX {
 
 enum class Parity {
-    NONE = 0,
-    EVEN = 1,
-    ODD = 2,
+    NONE = asio::serial_port_base::parity::none,
+    EVEN = asio::serial_port_base::parity::even,
+    ODD = asio::serial_port_base::parity::odd,
 };
 
 enum class DataBits {
@@ -17,14 +17,14 @@ enum class DataBits {
 };
 
 enum class StopBits {
-    ONE = 0,
-    TWO = 1,
+    ONE = asio::serial_port_base::stop_bits::one,
+    TWO = asio::serial_port_base::stop_bits::two,
 };
 
 enum class FlowControl {
-    NONE = 0,
-    RTS_CTS = 1,
-    XON_XOFF = 2,
+    NONE = asio::serial_port_base::flow_control::none,
+    RTS_CTS = asio::serial_port_base::flow_control::hardware,
+    XON_XOFF = asio::serial_port_base::flow_control::software,
 };
 
 class SerialInterface : public ICommInterface {
@@ -32,11 +32,12 @@ public:
     SerialInterface(std::string port = "/dev/ttyUSB0", int baudRate = 115200, DataBits dataBits = DataBits::EIGHT, Parity parity = Parity::EVEN, StopBits stopBits = StopBits::ONE, FlowControl flowControl = FlowControl::NONE);
     ~SerialInterface() override;
 
-    bool sendCommand(const std::string& command) override;
+    std::string sendCommand(const std::string& command) override;
 
 private:
 
-    asio::serial_port serialPort;
+    asio::io_context ioContext;
+    asio::serial_port serial;
 };
 
 };  // namespace OpenSRX

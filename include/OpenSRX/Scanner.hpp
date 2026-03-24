@@ -1,6 +1,6 @@
 #pragma once
 
-#include "OpenSRX/API.hpp"
+#include "OpenSRX/OpenSRX.hpp"
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/Timestamp.hpp"
 
@@ -36,26 +36,26 @@ enum class BusyStatus {
 
 class Scanner {
 public:
-Scanner(ICommInterface& commInterface);
+Scanner(ICommInterface& comm);
 ~Scanner() = default;
 
 std::tuple<std::string, std::string> getVersionInfo();
-std::string getMacAddress();
+// std::string getMacAddress();
 
-CommandStatus getCommandStatus();
-ErrorStatus getErrorStatus();
-BusyStatus getBusyStatus();
+// CommandStatus getCommandStatus();
+// ErrorStatus getErrorStatus();
+// BusyStatus getBusyStatus();
 
-std::string read();
-std::string read(int bank);
-void stopReading();
+// std::string read();
+// std::string read(int bank);
+// void stopReading();
 
-Timestamp getTime();
-void setTime(const Timestamp& timestamp);
+// Timestamp getTime();
+// void setTime(const Timestamp& timestamp);
 
 
 private:
-ICommInterface& commInterface;
+ICommInterface& comm;
 
 };
 

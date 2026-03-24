@@ -61,8 +61,8 @@ target_link_libraries(asio_headers
 set(OPENSRX_GENERATED_INCLUDE_DIR "${PROJECT_BINARY_DIR}/generated/include")
 file(MAKE_DIRECTORY "${OPENSRX_GENERATED_INCLUDE_DIR}/OpenSRX")
 configure_file(
-    "${PROJECT_SOURCE_DIR}/include/OpenSRX/version.hpp.in"
-    "${OPENSRX_GENERATED_INCLUDE_DIR}/OpenSRX/version.hpp"
+    "${PROJECT_SOURCE_DIR}/include/OpenSRX/Version.hpp.in"
+    "${OPENSRX_GENERATED_INCLUDE_DIR}/OpenSRX/Version.hpp"
     @ONLY
 )
 

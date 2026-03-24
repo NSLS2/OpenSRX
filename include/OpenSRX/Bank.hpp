@@ -1,22 +1,21 @@
 #pragma once
 
-#include "OpenSRX/API.hpp"
+#include "OpenSRX/Scanner.hpp"
 #include <stdexcept>
 #include <string>
 
 namespace OpenSRX {
 
 
-bool isValidBankId(int id) {
-    return id >= 1 && id <= 16;
-}
+bool isValidBankId(int id);
 
 class Bank {
 public:
-    Bank(int id = 1) : id(id) { if(!isValidBankId(id)) throw std::out_of_range("Bank ID must be between 1 and 16"); }
+    Bank(Scanner& scanner, int id = 1);
     ~Bank() = default;
 
 private:
+    Scanner& scanner;
     int id;
     std::string name;
 
