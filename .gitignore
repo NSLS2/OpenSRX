@@ -9,3 +9,5 @@ lib/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+__pycache__/
+SRX300_USER_MANUAL.pdf
