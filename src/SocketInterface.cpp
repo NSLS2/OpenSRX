@@ -1,16 +1,12 @@
 #include "OpenSRX/SocketInterface.hpp"
 
-#include <spdlog/spdlog.h>
-
-#include <asio.hpp>
-
 namespace OpenSRX {
 
 SocketInterface::SocketInterface(std::string ip, int port)
     : socket(ioContext), ip(std::move(ip)), port(port) {
     spdlog::info("Initializing socket connection to {}...", describe());
     asio::ip::tcp::resolver resolver(ioContext);
-    asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(ip, std::to_string(port));
+    asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(this->ip, std::to_string(this->port));
     asio::connect(socket, endpoints);
     spdlog::info("Socket connection established.");
 }

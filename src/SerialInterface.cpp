@@ -1,10 +1,6 @@
 
 #include "OpenSRX/SerialInterface.hpp"
 
-#include <asio.hpp>
-#include <iostream>
-#include <string>
-
 namespace OpenSRX {
 
 SerialInterface::SerialInterface(std::string port, int baudRate, DataBits dataBits, Parity parity,
@@ -22,27 +18,27 @@ SerialInterface::SerialInterface(std::string port, int baudRate, DataBits dataBi
 SerialInterface::~SerialInterface() { serial.close(); }
 
 std::string SerialInterface::sendCommand(const std::string& command) {
-    asio::write(serial, asio::buffer(command));
-    asio::streambuf buf;
-    // read_until will read up to and including the delimiter
-    asio::read_until(serial, buf, '\r');
-    std::istream is(&buf);
-    std::string line;
-    std::getline(is, line, '\r');
-    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
-        line.pop_back();
-    }
+    std::string fullCommand = addHeaderAndTerminator(command);
 
-    // Check if line startswith "OK" to indicate successful command execution
-    if (line.rfind("OK", 0) == 0) {
-        line = line.substr(2);  // Remove "OK" prefix
-        // Next we should get a
+    asio::write(serial, asio::buffer(fullCommand));
 
-    } else {
-        throw std::runtime_error("Command execution failed: " + line);
-    }
+    // Read from serial until we see our terminator
+    asio::streambuf response;
+    asio::read_until(serial, response, inTermStr);
 
-    return line;
+    // Convert response to a string
+    std::string result{asio::buffers_begin(response.data()), asio::buffers_end(response.data())};
+
+    // Strip the terminator from the end of the response, and the header from the start if
+    // applicable
+    auto pos = result.find(inTermStr);
+    if (pos != std::string::npos) result.erase(pos);
+
+    if (commFormat == CommFormat::STX_HEADER_ETX_IN_ETX_OUT && !result.empty() &&
+        result[0] == '\x02')
+        result.erase(0, 1);
+
+    return result;
 }
 
 };  // namespace OpenSRX
