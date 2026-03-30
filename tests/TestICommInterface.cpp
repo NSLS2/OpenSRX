@@ -1,6 +1,5 @@
 #include "TestICommInterface.hpp"
 
-
 TEST_F(TestICommInterface, TestStripEcho) {
     std::string command = "TEST_COMMAND";
     std::string response = "TEST_COMMAND,Version 1.2.3";

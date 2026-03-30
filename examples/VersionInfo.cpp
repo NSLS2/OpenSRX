@@ -35,6 +35,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "OpenSRX " << OpenSRX::GetVersion<std::string>() << std::endl;
 
+    // Can also get the library version as a tuple of integers (major, minor, patch) if needed
+    // auto versionTuple = OpenSRX::GetVersion<OpenSRX::VersionTuple>();
+    // std::cout << "Version tuple: (" << std::get<0>(versionTuple) << ", "
+    //           << std::get<1>(versionTuple) << ", " << std::get<2>(versionTuple) << ")" <<
+    //           std::endl;
+
     std::unique_ptr<OpenSRX::ICommInterface> iface;
     if (program.is_used("--serial")) {
         iface = std::make_unique<OpenSRX::SerialInterface>(program.get("--serial"));
