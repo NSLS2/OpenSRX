@@ -8,6 +8,7 @@ version = "0.1.0"
 [tasks]
 lint = "pre-commit run --all-files"
 tests = "./build/tests/TestOpenSRX"
+sim = "./scripts/simulator.py"
 
 [dependencies]
 pre-commit = ">=4.5.1,<5"
