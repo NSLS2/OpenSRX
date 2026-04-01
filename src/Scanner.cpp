@@ -14,7 +14,7 @@ std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw) {
 }
 
 Scanner::Scanner(ICommInterface& comm) : comm(comm) {
-    spdlog::info("Connecting to scanner at comm {}", comm.describe());
+    spdlog::info("Connecting to scanner at {}", comm.describe());
     spdlog::info("Obtaining version information...");
     std::string raw = comm.sendCommand("KEYENCE");
     auto [model, firmware] = parseVersionInfo(raw);

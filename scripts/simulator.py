@@ -15,7 +15,7 @@ Supports:
   - Error code responses for invalid commands
 
 Usage:
-    python srx300_simulator.py [--host HOST] [--port PORT] [--comm-format {0,1,2}]
+    python simulator.py [--host HOST] [--port PORT] [--comm-format {0,1,2}]
 """
 
 import argparse

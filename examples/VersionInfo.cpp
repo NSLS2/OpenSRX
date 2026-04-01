@@ -19,6 +19,8 @@ int main(int argc, char* argv[]) {
         .help("Port number of the scanner (required with --ip)")
         .scan<'i', int>();
 
+    program.add_argument("-d", "--debug").help("Enable debug logging").default_value(false).implicit_value(true);
+
     try {
         program.parse_args(argc, argv);
     } catch (const std::exception& err) {
@@ -31,6 +33,13 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error: --port is required when using --ip" << std::endl;
         std::cerr << program;
         return 1;
+    }
+
+    // OpenSRX uses spdlog for logging. Set the log level based on whether the user passed the --debug flag.
+    if (program.get<bool>("--debug")) {
+        spdlog::set_level(spdlog::level::debug);
+    } else {
+        spdlog::set_level(spdlog::level::info);
     }
 
     std::cout << "OpenSRX " << OpenSRX::GetVersion<std::string>() << std::endl;

@@ -4,17 +4,17 @@ namespace OpenSRX {
 
 SocketInterface::SocketInterface(std::string ip, int port)
     : socket(ioContext), ip(std::move(ip)), port(port) {
-    spdlog::info("Initializing socket connection to {}...", describe());
+    spdlog::debug("Initializing socket connection to {}...", describe());
     asio::ip::tcp::resolver resolver(ioContext);
     asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(this->ip, std::to_string(this->port));
     asio::connect(socket, endpoints);
-    spdlog::info("Socket connection established.");
+    spdlog::debug("Socket connection established.");
 }
 
 SocketInterface::~SocketInterface() {
-    spdlog::info("Closing socket connection to {}...", describe());
+    spdlog::debug("Closing socket connection to {}...", describe());
     socket.close();
-    spdlog::info("Socket connection to {} closed.", describe());
+    spdlog::debug("Socket connection to {} closed.", describe());
 }
 
 std::string SocketInterface::sendCommand(const std::string& command) {
