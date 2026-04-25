@@ -16,3 +16,7 @@ target_link_libraries(VersionInfo
         OpenSRX
         argparse::argparse
 )
+
+install(TARGETS VersionInfo
+    RUNTIME DESTINATION bin
+)

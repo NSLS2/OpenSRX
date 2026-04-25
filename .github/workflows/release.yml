@@ -1,0 +1,45 @@
+---
+
+name: Release Artifacts
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build and Package
+    runs-on: ubuntu-latest
+    container: almalinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y cmake make gcc g++ tar gzip
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build and install
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          cmake -S . -B build -DCMAKE_INSTALL_PREFIX="OpenSRX-${VERSION}" -DBUILD_TESTS=OFF
+          cmake --build build -j$(nproc)
+          cmake --install build
+
+      - name: Create tarball
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          tar czf "OpenSRX-${VERSION}-linux-x64.tar.gz" "OpenSRX-${VERSION}"
+
+      - name: Upload release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          dnf install -y gh
+          gh release upload "${VERSION}" "OpenSRX-${VERSION}-linux-x64.tar.gz" --repo "${{ github.repository }}"
