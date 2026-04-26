@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 
 #include <asio.hpp>
+#include <mutex>
 #include <string>
 
 class MockCommInterface;
@@ -84,5 +85,9 @@ class ICommInterface {
     std::string addHeaderAndTerminator(const std::string& command);
     CommFormat commFormat = CommFormat::NO_HEADER_CR_IN_CR_OUT;
     std::string inTermStr = "\r";
+
+   protected:
+    /// Mutex to ensure thread-safe access to the communication interface.
+    std::mutex commMutex;
 };
 }  // namespace OpenSRX

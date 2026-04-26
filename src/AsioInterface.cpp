@@ -10,6 +10,8 @@ namespace OpenSRX {
  */
 template <typename StreamT>
 std::string AsioInterface<StreamT>::sendCommand(const std::string& command) {
+    std::scoped_lock lock(commMutex);
+
     std::string fullCommand = addHeaderAndTerminator(command);
     asio::write(stream, asio::buffer(fullCommand));
 
