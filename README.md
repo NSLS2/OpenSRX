@@ -1,4 +1,4 @@
-# OpenSRX
+# OpenSRX [![CI](https://github.com/jwlodek/OpenSRX/actions/workflows/ci.yml/badge.svg)](https://github.com/jwlodek/OpenSRX/actions/workflows/ci.yml)
 
 Basic CMake project scaffold with:
 
