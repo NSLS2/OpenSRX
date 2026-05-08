@@ -65,14 +65,14 @@ std::string formatParam<ParamType::INT>(const int& value) {
 // ─── Enum helpers ───────────────────────────────────────────────────────────
 // All enum-typed parameters are integers on the wire; we just cast.
 
-#define OPENSRX_DEFINE_ENUM_PARAM(PT, EnumType)                            \
-    template <>                                                            \
-    EnumType parseParam<ParamType::PT>(const std::string& raw) {           \
-        return static_cast<EnumType>(std::stoi(raw));                      \
-    }                                                                      \
-    template <>                                                            \
-    std::string formatParam<ParamType::PT>(const EnumType& value) {        \
-        return std::to_string(static_cast<int>(value));                    \
+#define OPENSRX_DEFINE_ENUM_PARAM(PT, EnumType)                     \
+    template <>                                                     \
+    EnumType parseParam<ParamType::PT>(const std::string& raw) {    \
+        return static_cast<EnumType>(std::stoi(raw));               \
+    }                                                               \
+    template <>                                                     \
+    std::string formatParam<ParamType::PT>(const EnumType& value) { \
+        return std::to_string(static_cast<int>(value));             \
     }
 
 OPENSRX_DEFINE_ENUM_PARAM(TOGGLE, Toggle)

@@ -86,7 +86,6 @@ class Scanner {
     std::tuple<bool, TuningAdvice, TuningFailureReason> startTuning(int bank);
     void stopTuning();
 
-
     std::string getModel() const { return model; }
     std::string getFirmwareVersion() const { return firmwareVersion; }
     std::string getMacAddress() const { return macAddress; }
@@ -124,8 +123,8 @@ class Scanner {
     template <BankParam P>
     auto getParam(int bank) -> ParamCppT<paramType(P)> {
         std::ostringstream cmd;
-        cmd << "RB," << std::setw(2) << std::setfill('0') << bank
-            << std::setw(3) << std::setfill('0') << static_cast<int>(P);
+        cmd << "RB," << std::setw(2) << std::setfill('0') << bank << std::setw(3)
+            << std::setfill('0') << static_cast<int>(P);
         std::string raw = comm.sendCommand(cmd.str());
         return parseParam<paramType(P)>(raw);
     }
@@ -139,9 +138,8 @@ class Scanner {
     template <BankParam P>
     void setParam(int bank, const ParamCppT<paramType(P)>& value) {
         std::ostringstream cmd;
-        cmd << "WB," << std::setw(2) << std::setfill('0') << bank
-            << std::setw(3) << std::setfill('0') << static_cast<int>(P)
-            << "," << formatParam<paramType(P)>(value);
+        cmd << "WB," << std::setw(2) << std::setfill('0') << bank << std::setw(3)
+            << std::setfill('0') << static_cast<int>(P) << "," << formatParam<paramType(P)>(value);
         comm.sendCommand(cmd.str());
     }
 
@@ -166,8 +164,8 @@ class Scanner {
      */
     template <TuningParam P>
     void setParam(const ParamCppT<paramType(P)>& value) {
-        std::string cmd = "WC," + std::to_string(static_cast<int>(P)) +
-                          "," + formatParam<paramType(P)>(value);
+        std::string cmd =
+            "WC," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
         comm.sendCommand(cmd);
     }
 
@@ -192,8 +190,8 @@ class Scanner {
      */
     template <OperationParam P>
     void setParam(const ParamCppT<paramType(P)>& value) {
-        std::string cmd = "WP," + std::to_string(static_cast<int>(P)) +
-                          "," + formatParam<paramType(P)>(value);
+        std::string cmd =
+            "WP," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
         comm.sendCommand(cmd);
     }
 
@@ -218,16 +216,14 @@ class Scanner {
      */
     template <CommParam P>
     void setParam(const ParamCppT<paramType(P)>& value) {
-        std::string cmd = "WN," + std::to_string(static_cast<int>(P)) +
-                          "," + formatParam<paramType(P)>(value);
+        std::string cmd =
+            "WN," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
         comm.sendCommand(cmd);
     }
-
 
    private:
     ICommInterface& comm;
     std::string model, firmwareVersion, macAddress;
-
 };
 
 }  // namespace OpenSRX

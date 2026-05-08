@@ -23,5 +23,4 @@ Scanner::Scanner(ICommInterface& comm) : comm(comm) {
     spdlog::info("Connected to scanner, model: {}, firmware version: {}", model, firmware);
 }
 
-
 }  // namespace OpenSRX
