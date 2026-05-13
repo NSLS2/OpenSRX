@@ -107,21 +107,21 @@ int main(int argc, char* argv[]) {
 
     out.write("BM", 2);
     writeLE32(fileSize);
-    writeLE32(0);  // reserved
-    writeLE32(54); // pixel data offset
+    writeLE32(0);   // reserved
+    writeLE32(54);  // pixel data offset
 
     // DIB header (BITMAPINFOHEADER, 40 bytes)
     writeLE32(40);
     writeLE32(img.width);
     writeLE32(img.height);
-    writeLE16(1);              // color planes
+    writeLE16(1);  // color planes
     writeLE16(bitsPerPixel);
-    writeLE32(0);              // no compression
+    writeLE32(0);  // no compression
     writeLE32(imageSize);
-    writeLE32(2835);           // horizontal resolution (72 DPI)
-    writeLE32(2835);           // vertical resolution (72 DPI)
-    writeLE32(0);              // colors in palette
-    writeLE32(0);              // important colors
+    writeLE32(2835);  // horizontal resolution (72 DPI)
+    writeLE32(2835);  // vertical resolution (72 DPI)
+    writeLE32(0);     // colors in palette
+    writeLE32(0);     // important colors
 
     // Pixel data — BMP stores rows bottom-to-top
     std::vector<uint8_t> padding(rowPadding, 0);
