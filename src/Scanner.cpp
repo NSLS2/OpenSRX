@@ -253,6 +253,53 @@ void Scanner::clearPLCLinkError() {
     checkResponse(comm.sendCommand("PCLR"));
 }
 
+// ─── Image server ────────────────────────────────────────────────────────────
+
+void Scanner::startImageServer(const std::string& localIP, uint16_t port,
+                               const std::string& username,
+                               const std::string& password) {
+    if (imageServer && imageServer->isRunning())
+        throw std::runtime_error("Image server is already running");
+
+    imageServer = std::make_unique<ImageServer>(port, username, password);
+    imageServer->start();
+
+    // Configure the scanner's FTP parameters to point at our server
+    setParam<CommParam::FTP_REMOTE_IP>(localIP);
+    setParam<CommParam::FTP_USER_NAME>(username);
+    setParam<CommParam::FTP_PASSWORD>(password);
+    setParam<CommParam::FTP_REMOTE_PORT>(static_cast<int>(imageServer->getPort()));
+}
+
+void Scanner::stopImageServer() {
+    if (imageServer) {
+        imageServer->stop();
+        imageServer.reset();
+    }
+}
+
+Image Scanner::waitForImage() {
+    if (!imageServer || !imageServer->isRunning())
+        throw std::runtime_error("Image server is not running");
+    return imageServer->waitForImage();
+}
+
+bool Scanner::tryGetImage(Image& image) {
+    if (!imageServer || !imageServer->isRunning()) return false;
+    return imageServer->tryGetImage(image);
+}
+
+std::deque<Image> Scanner::getImages() {
+    if (!imageServer || !imageServer->isRunning()) return {};
+    return imageServer->getImages();
+}
+
+void Scanner::setImageCallback(std::function<void(const Image&)> cb) {
+    if (!imageServer)
+        throw std::runtime_error("Image server has not been created yet");
+    imageServer->setImageCallback(std::move(cb));
+}
+
 std::string Scanner::checkResponse(const std::string& response) {
     if (response.substr(0, 3) == "ER,") {
         auto lastComma = response.rfind(',');

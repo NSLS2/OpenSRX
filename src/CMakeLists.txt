@@ -6,6 +6,8 @@ endif()
 
 add_library(OpenSRX ${OPENSRX_LIBRARY_TYPE}
     AsioInterface.cpp
+    Image.cpp
+    ImageServer.cpp
     ParamTraits.cpp
     Scanner.cpp
     SerialInterface.cpp
