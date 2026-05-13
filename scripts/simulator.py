@@ -114,6 +114,7 @@ class SRX300Simulator:
             "404": "image",          # Subfolder name
             "405": "0",             # FTP connection timing
             "408": "0",             # Passive mode: 0=Disable, 1=Enable
+            "442": "21",            # FTP remote port
         }
 
         # Image capture counter (for file naming)
@@ -671,6 +672,7 @@ class SRX300Simulator:
         use_subfolder = self.comm_config.get("403", "0") == "1"
         subfolder = self.comm_config.get("404", "image")
         passive = self.comm_config.get("408", "0") == "1"
+        ftp_port = int(self.comm_config.get("442", "21"))
 
         remote_path = PurePosixPath(subfolder) / filename if use_subfolder else PurePosixPath(filename)
 
@@ -681,7 +683,7 @@ class SRX300Simulator:
         def _do_push():
             try:
                 ftp = ftplib.FTP()
-                ftp.connect(ftp_ip, 21, timeout=5)
+                ftp.connect(ftp_ip, ftp_port, timeout=5)
                 ftp.login(username, password)
                 if passive:
                     ftp.set_pasv(True)

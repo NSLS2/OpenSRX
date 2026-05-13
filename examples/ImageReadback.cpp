@@ -31,8 +31,8 @@ int main(int argc, char* argv[]) {
         .required();
 
     program.add_argument("-o", "--output")
-        .help("Output file path for the raw pixel data")
-        .default_value(std::string("captured_image.raw"));
+        .help("Output BMP file path")
+        .default_value(std::string("captured_image.bmp"));
 
     program.add_argument("-d", "--debug")
         .help("Enable debug logging")
@@ -91,11 +91,46 @@ int main(int argc, char* argv[]) {
     std::cout << "Received image: " << img.width << "x" << img.height << " (" << img.channels
               << " channels, " << img.data.size() << " bytes)" << std::endl;
 
-    // Write raw pixel data to file
+    // Write image as BMP file
     std::string outPath = program.get("-o");
     std::ofstream out(outPath, std::ios::binary);
-    out.write(reinterpret_cast<const char*>(img.data.data()), img.data.size());
-    std::cout << "Saved raw image data to " << outPath << std::endl;
+
+    int rowBytes = img.width * img.channels;
+    int rowPadding = (4 - (rowBytes % 4)) % 4;
+    int imageSize = (rowBytes + rowPadding) * img.height;
+    int fileSize = 54 + imageSize;
+    int bitsPerPixel = img.channels * 8;
+
+    // BMP file header (14 bytes)
+    auto writeLE16 = [&](uint16_t v) { out.write(reinterpret_cast<const char*>(&v), 2); };
+    auto writeLE32 = [&](uint32_t v) { out.write(reinterpret_cast<const char*>(&v), 4); };
+
+    out.write("BM", 2);
+    writeLE32(fileSize);
+    writeLE32(0);  // reserved
+    writeLE32(54); // pixel data offset
+
+    // DIB header (BITMAPINFOHEADER, 40 bytes)
+    writeLE32(40);
+    writeLE32(img.width);
+    writeLE32(img.height);
+    writeLE16(1);              // color planes
+    writeLE16(bitsPerPixel);
+    writeLE32(0);              // no compression
+    writeLE32(imageSize);
+    writeLE32(2835);           // horizontal resolution (72 DPI)
+    writeLE32(2835);           // vertical resolution (72 DPI)
+    writeLE32(0);              // colors in palette
+    writeLE32(0);              // important colors
+
+    // Pixel data — BMP stores rows bottom-to-top
+    std::vector<uint8_t> padding(rowPadding, 0);
+    for (int y = img.height - 1; y >= 0; --y) {
+        out.write(reinterpret_cast<const char*>(img.data.data() + y * rowBytes), rowBytes);
+        if (rowPadding > 0) out.write(reinterpret_cast<const char*>(padding.data()), rowPadding);
+    }
+
+    std::cout << "Saved BMP image to " << outPath << std::endl;
 
     scanner.stopImageServer();
     return 0;
