@@ -16,7 +16,7 @@ enum class ErrCode {
     PARAM1_OUT_OF_RANGE = 2,                          ///< Parameter 1 value exceeds the set range.
     PARAM2_OUT_OF_RANGE = 3,                          ///< Parameter 2 value exceeds the set range.
     PARAM2_NOT_IN_HEX = 4,                            ///< Parameter 2 is not in hexadecimal.
-    PARAM2_IN_HEX_BUT_OUT_OF_RANGE = 5,              ///< Parameter 2 is hex but out of range.
+    PARAM2_IN_HEX_BUT_OUT_OF_RANGE = 5,               ///< Parameter 2 is hex but out of range.
     TWO_OR_MORE_MARKS_IN_PRESET_DATA = 10,            ///< Preset data contains two or more "!" marks.
     AREA_SPECIFICATION_DATA_INCORRECT = 11,           ///< Area specification data is incorrect.
     FILE_DOES_NOT_EXIST = 12,                         ///< Specified file does not exist.
@@ -31,7 +31,7 @@ enum class ErrCode {
 
 /// Communication framing format for command/response exchange.
 enum class CommFormat {
-    NO_HEADER_CR_IN_CR_OUT = 0,      ///< No header; CR terminator in both directions.
+    NO_HEADER_CR_IN_CR_OUT = 0,     ///< No header; CR terminator in both directions.
     NO_HEADER_CRLF_IN_CR_OUT = 1,   ///< No header; CR+LF in, CR out.
     STX_HEADER_ETX_IN_ETX_OUT = 2,  ///< STX header with ETX terminator.
 };

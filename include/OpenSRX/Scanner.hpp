@@ -6,7 +6,6 @@
 
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/ImageServer.hpp"
-#include "OpenSRX/OpenSRX.hpp"
 #include "OpenSRX/ParamTraits.hpp"
 #include "OpenSRX/Timestamp.hpp"
 
