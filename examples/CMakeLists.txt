@@ -17,6 +17,36 @@ target_link_libraries(VersionInfo
         argparse::argparse
 )
 
-install(TARGETS VersionInfo
+add_executable(ReadCode
+    ReadCode.cpp
+)
+
+target_link_libraries(ReadCode
+    PRIVATE
+        OpenSRX
+        argparse::argparse
+)
+
+add_executable(ImageReadback
+    ImageReadback.cpp
+)
+
+target_link_libraries(ImageReadback
+    PRIVATE
+        OpenSRX
+        argparse::argparse
+)
+
+add_executable(AdjustParams
+    AdjustParams.cpp
+)
+
+target_link_libraries(AdjustParams
+    PRIVATE
+        OpenSRX
+        argparse::argparse
+)
+
+install(TARGETS VersionInfo ReadCode ImageReadback AdjustParams
     RUNTIME DESTINATION bin
 )
