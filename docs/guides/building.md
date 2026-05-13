@@ -39,3 +39,4 @@ All C++ dependencies are fetched automatically at configure time through CMake
 - **spdlog** 1.15.3 – fast C++ logging
 - **fineftp-server** 1.3.4 – lightweight FTP server for image readback
 - **GoogleTest** 1.17.0 – unit-testing framework (tests only)
+- **argparse** 3.2 – CLI argument parsing (examples only)

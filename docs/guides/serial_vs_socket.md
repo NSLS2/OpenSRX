@@ -9,26 +9,27 @@ Use OpenSRX::SocketInterface for Ethernet (TCP/IP) connections.
 This is the most common setup for the SR-X series.
 
 ```cpp
-#include "OpenSRX/SocketInterface.hpp"
-#include "OpenSRX/Scanner.hpp"
+#include "OpenSRX/OpenSRX.hpp"
 
 OpenSRX::SocketInterface comm("192.168.100.100", 9004);
 OpenSRX::Scanner scanner(comm);
-```
 
-The socket interface also supports starting an embedded FTP server for
-image readback via OpenSRX::SocketInterface::startFtpServer.
+OpenSRX::Code code = scanner.startReading();
+std::cout << code.data << std::endl;
+```
 
 ## SerialInterface
 
 Use OpenSRX::SerialInterface for RS-232 serial connections.
 
 ```cpp
-#include "OpenSRX/SerialInterface.hpp"
-#include "OpenSRX/Scanner.hpp"
+#include "OpenSRX/OpenSRX.hpp"
 
 OpenSRX::SerialInterface comm("/dev/ttyUSB0", 115200);
 OpenSRX::Scanner scanner(comm);
+
+OpenSRX::Code code = scanner.startReading();
+std::cout << code.data << std::endl;
 ```
 
 You can configure parity, data bits, stop bits, and flow control through

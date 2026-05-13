@@ -5,13 +5,12 @@ PROJECT_BRIEF          = "C++ library for interfacing with Keyence SR series bar
 PROJECT_NUMBER         = 0.1.0
 OUTPUT_DIRECTORY       = _build
 
-# Input: C++ headers, sources, and markdown guides
+# Input: C++ headers and markdown guides
 INPUT                  = ../include/OpenSRX \
-                         ../src \
                          mainpage.md \
                          guides
 RECURSIVE              = YES
-FILE_PATTERNS          = *.hpp *.h *.cpp *.md
+FILE_PATTERNS          = *.hpp *.h *.md
 USE_MDFILE_AS_MAINPAGE = mainpage.md
 
 # HTML output with a navigation tree

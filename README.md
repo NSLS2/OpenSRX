@@ -1,63 +1,114 @@
 # OpenSRX [![CI](https://github.com/jwlodek/OpenSRX/actions/workflows/ci.yml/badge.svg)](https://github.com/jwlodek/OpenSRX/actions/workflows/ci.yml)
 
-Basic CMake project scaffold with:
+A C++ library for interfacing with Keyence SR-X series barcode readers over
+Ethernet (TCP socket) or RS-232 serial connections.
 
-- a root `CMakeLists.txt`
-- a shared library by default, or a static library when requested
-- public headers under `include/`
-- example binaries under `examples/`
-- a placeholder `tests/` directory
+## Features
+
+- **Scanner control** – reading, tuning, I/O terminal control, status queries,
+  settings management (save/load/factory reset/backup)
+- **Typed parameter access** – template-based get/set for bank, tuning,
+  operation, and communication parameters with automatic type conversion
+- **Structured read results** – `Code` struct with optional bounding box,
+  center, code type, bank number, and angle metadata
+- **Image readback** – embedded FTP server receives BMP images pushed by the
+  scanner; decode, queue, and callback APIs
+- **Two comm backends** – `SocketInterface` (TCP/IP) and `SerialInterface`
+  (RS-232), both implementing `ICommInterface`
+- **Simulator** – Python-based scanner simulator for development without hardware
+
+## Quick Start
+
+```cpp
+#include "OpenSRX/OpenSRX.hpp"
+
+// Connect over Ethernet
+OpenSRX::SocketInterface comm("192.168.100.100", 9004);
+OpenSRX::Scanner scanner(comm);
+
+// Read a barcode
+OpenSRX::Code code = scanner.startReading();
+std::cout << "Read: " << code.data << std::endl;
+
+// Get/set parameters
+auto exposure = scanner.getParam<OpenSRX::BankParam::EXPOSURE_TIME>(1);
+scanner.setParam<OpenSRX::OperationParam::IMAGE_FORMAT>(OpenSRX::ImageFormat::BMP);
+```
 
 ## Build
 
 ```bash
 cmake -S . -B build
 cmake --build build
-./build/examples/opensrx_example
 ```
+
+Or with [pixi](https://pixi.sh):
+
+```bash
+pixi run build
+```
+
+## Examples
+
+Six example programs are included under `examples/`:
+
+| Example | Description |
+|---------|-------------|
+| `VersionInfo` | Print library and scanner version information |
+| `ReadCode` | Trigger a barcode read and print the result |
+| `ReadCodeDetailed` | Read with bounding box, center, and code type metadata |
+| `ImageReadback` | Start FTP server, trigger a read, save the received image as BMP |
+| `ImageSnapshot` | Take a camera snapshot (no decode) and save as BMP |
+| `AdjustParams` | Read and modify scanner parameters |
+
+All examples accept `--ip`/`--port` or `--serial` arguments. Run with `--help`
+for details.
 
 ## Options
 
+| Option | Description | Default |
+|--------|-------------|---------|
+| `BUILD_STATIC_LIB` | Build a static library instead of shared | `OFF` |
+| `BUILD_EXAMPLES` | Build example binaries | `ON` |
+| `BUILD_TESTS` | Build the test suite (fetches GoogleTest) | `ON` |
+
+## Testing
+
 ```bash
-cmake -S . -B build -DBUILD_STATIC_LIB=ON
-cmake -S . -B build -DBUILD_TESTS=OFF
-cmake -S . -B build -DBUILD_EXAMPLES=OFF
+cmake --build build
+./build/tests/TestOpenSRX
 ```
 
-`BUILD_STATIC_LIB=OFF` builds the shared library. `BUILD_STATIC_LIB=ON` builds the static library instead.
+## Dependencies
 
-## Test Dependencies
+All C++ dependencies are fetched automatically via CMake `FetchContent`:
 
-Tests use CMake `FetchContent` to download GoogleTest and GoogleMock version `1.17.0` during configure.
+- **Asio** 1.30.2 – standalone, header-only networking
+- **spdlog** 1.15.3 – fast C++ logging
+- **fineftp-server** 1.3.4 – lightweight FTP server for image readback
+- **GoogleTest** 1.17.0 – unit-testing framework (tests only)
+- **argparse** 3.2 – CLI argument parsing (examples only)
 
-## Networking Dependency
+## Simulator
 
-The project uses standalone header-only Asio via CMake `FetchContent`, currently pinned to version `1.30.2`.
+A Python-based scanner simulator is provided for development and testing:
 
-## Logging Dependency
+```bash
+python scripts/simulator.py
+# or: pixi run simulator
+```
 
-The project uses `spdlog` via CMake `FetchContent`, currently pinned to version `1.15.3`.
-
-## FTP Dependency
-
-The project uses `fineftp-server` via CMake `FetchContent`, currently pinned to version `1.3.4`, for FTP-based image readback from the scanner.
+This opens a TCP server on port 9004 that emulates the SR-X command protocol,
+including simulated barcode reads with generated images pushed via FTP.
 
 ## Documentation
 
-The project uses [Doxygen](https://www.doxygen.nl/) to generate documentation
-from both C++ header comments and hand-written Markdown guides.
-
-### Build docs locally
+API documentation is generated with [Doxygen](https://www.doxygen.nl/) from
+the C++ header comments and hand-written Markdown guides.
 
 ```bash
-# With pixi
 pixi run docs
-
-# Or manually
-cd docs
-doxygen Doxyfile
+# or: cd docs && doxygen Doxyfile
 ```
-
-The generated site will be in `docs/_build/html/`.
 
 The generated site will be in `docs/_build/html/`.
