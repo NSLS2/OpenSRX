@@ -4,9 +4,16 @@
 
 namespace OpenSRX {
 
+/// Library major version number.
 inline constexpr int versionMajor = @PROJECT_VERSION_MAJOR@;
+
+/// Library minor version number.
 inline constexpr int versionMinor = @PROJECT_VERSION_MINOR@;
+
+/// Library patch version number.
 inline constexpr int versionPatch = @PROJECT_VERSION_PATCH@;
+
+/// Library version as a string (e.g. "1.2.3").
 inline constexpr std::string_view versionString = "@PROJECT_VERSION@";
 
 } // namespace OpenSRX
