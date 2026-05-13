@@ -29,6 +29,23 @@ class TestScanner : public ::testing::Test {
         return pScanner->checkResponse(response);
     }
 
+    /**
+     * @brief Set up EXPECT_CALLs for parseReadResult with all appending disabled.
+     *
+     * parseReadResult queries the inter-delimiter and each appending flag.
+     * This helper expects all of them and returns "disabled" defaults.
+     */
+    void expectParseReadDefaults() {
+        // Inter-delimiter (RP,602) -> "2C" (comma)
+        EXPECT_CALL(*pMockComm, sendCommand("RP,602")).WillOnce(Return("OK,RP,2C"));
+        // All appending flags disabled (Toggle 0 = DISABLE)
+        EXPECT_CALL(*pMockComm, sendCommand("RP,308")).WillOnce(Return("OK,RP,0"));
+        EXPECT_CALL(*pMockComm, sendCommand("RP,309")).WillOnce(Return("OK,RP,0"));
+        EXPECT_CALL(*pMockComm, sendCommand("RP,301")).WillOnce(Return("OK,RP,0"));
+        EXPECT_CALL(*pMockComm, sendCommand("RP,303")).WillOnce(Return("OK,RP,0"));
+        EXPECT_CALL(*pMockComm, sendCommand("RP,371")).WillOnce(Return("OK,RP,0"));
+    }
+
     std::unique_ptr<StrictMock<MockCommInterface>> pMockComm;
     std::unique_ptr<Scanner> pScanner;
 };

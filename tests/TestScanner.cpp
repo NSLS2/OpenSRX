@@ -14,20 +14,21 @@ TEST_F(TestScanner, ConstructorParsesModelFirmwareAndMac) {
 
 TEST_F(TestScanner, StartReadingSendsLON) {
     EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON")).WillOnce(Return("BARCODE123"));
-    auto result = pScanner->startReading();
-    EXPECT_EQ(result, "BARCODE123");
+    expectParseReadDefaults();
+    Code result = pScanner->startReading();
+    EXPECT_EQ(result.data, "BARCODE123");
 }
 
-TEST_F(TestScanner, StartReadingReturnsErrorOnFailure) {
+TEST_F(TestScanner, StartReadingThrowsOnError) {
     EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON")).WillOnce(Return("ERROR"));
-    auto result = pScanner->startReading();
-    EXPECT_EQ(result, "ERROR");
+    EXPECT_THROW(pScanner->startReading(), std::runtime_error);
 }
 
 TEST_F(TestScanner, StartReadingWithBankSendsLONWithBank) {
     EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON,03")).WillOnce(Return("DATA456"));
-    auto result = pScanner->startReading(3);
-    EXPECT_EQ(result, "DATA456");
+    expectParseReadDefaults();
+    Code result = pScanner->startReading(3);
+    EXPECT_EQ(result.data, "DATA456");
 }
 
 TEST_F(TestScanner, StopReadingSendsLOFF) {
@@ -39,6 +40,7 @@ TEST_F(TestScanner, StartReadingUsesUnlockedSend) {
     // Verify LON goes through sendCommandUnlocked (not sendCommand)
     EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON")).WillOnce(Return("CODE"));
     EXPECT_CALL(*pMockComm, sendCommand("LON")).Times(0);
+    expectParseReadDefaults();
     pScanner->startReading();
 }
 
@@ -46,6 +48,66 @@ TEST_F(TestScanner, StopReadingUsesUnlockedSend) {
     EXPECT_CALL(*pMockComm, sendCommandUnlocked("LOFF")).WillOnce(Return(""));
     EXPECT_CALL(*pMockComm, sendCommand("LOFF")).Times(0);
     pScanner->stopReading();
+}
+
+TEST_F(TestScanner, StartReadingParsesVertexData) {
+    EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON"))
+        .WillOnce(Return("HELLO,10,20,30,40,50,60,70,80"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,602")).WillOnce(Return("OK,RP,2C"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,308")).WillOnce(Return("OK,RP,1"));  // vertex ON
+    EXPECT_CALL(*pMockComm, sendCommand("RP,309")).WillOnce(Return("OK,RP,0"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,301")).WillOnce(Return("OK,RP,0"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,303")).WillOnce(Return("OK,RP,0"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,371")).WillOnce(Return("OK,RP,0"));
+    Code result = pScanner->startReading();
+    EXPECT_EQ(result.data, "HELLO");
+    ASSERT_TRUE(result.boundingBox.has_value());
+    EXPECT_EQ(result.boundingBox->topLeft.x, 10);
+    EXPECT_EQ(result.boundingBox->topLeft.y, 20);
+    EXPECT_EQ(result.boundingBox->bottomRight.x, 50);
+    EXPECT_EQ(result.boundingBox->bottomRight.y, 60);
+}
+
+TEST_F(TestScanner, StartReadingParsesCenterAndCodeType) {
+    EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON"))
+        .WillOnce(Return("DATA,100,200,CODE128"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,602")).WillOnce(Return("OK,RP,2C"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,308")).WillOnce(Return("OK,RP,0"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,309")).WillOnce(Return("OK,RP,1"));  // center ON
+    EXPECT_CALL(*pMockComm, sendCommand("RP,301")).WillOnce(Return("OK,RP,1"));  // code type ON
+    EXPECT_CALL(*pMockComm, sendCommand("RP,303")).WillOnce(Return("OK,RP,0"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,371")).WillOnce(Return("OK,RP,0"));
+    Code result = pScanner->startReading();
+    EXPECT_EQ(result.data, "DATA");
+    ASSERT_TRUE(result.center.has_value());
+    EXPECT_EQ(result.center->x, 100);
+    EXPECT_EQ(result.center->y, 200);
+    ASSERT_TRUE(result.codeType.has_value());
+    EXPECT_EQ(*result.codeType, "CODE128");
+}
+
+TEST_F(TestScanner, StartReadingParsesAllAppendedFields) {
+    // vertex(8) + center(2) + type(1) + bank(1) + angle(1) = 13 appended fields
+    EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON"))
+        .WillOnce(Return("ABC,1,2,3,4,5,6,7,8,10,20,QR,03,2.5"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,602")).WillOnce(Return("OK,RP,2C"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,308")).WillOnce(Return("OK,RP,1"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,309")).WillOnce(Return("OK,RP,1"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,301")).WillOnce(Return("OK,RP,1"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,303")).WillOnce(Return("OK,RP,1"));
+    EXPECT_CALL(*pMockComm, sendCommand("RP,371")).WillOnce(Return("OK,RP,1"));
+    Code result = pScanner->startReading();
+    EXPECT_EQ(result.data, "ABC");
+    ASSERT_TRUE(result.boundingBox.has_value());
+    ASSERT_TRUE(result.center.has_value());
+    EXPECT_EQ(result.center->x, 10);
+    EXPECT_EQ(result.center->y, 20);
+    ASSERT_TRUE(result.codeType.has_value());
+    EXPECT_EQ(*result.codeType, "QR");
+    ASSERT_TRUE(result.bankNumber.has_value());
+    EXPECT_EQ(*result.bankNumber, 3);
+    ASSERT_TRUE(result.angle.has_value());
+    EXPECT_DOUBLE_EQ(*result.angle, 2.5);
 }
 
 // ─── Quick setup code reading ────────────────────────────────────────────────

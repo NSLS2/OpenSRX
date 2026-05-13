@@ -93,6 +93,15 @@ class SRX300Simulator:
             "503": "0",   # Unstable images
             "504": "0",   # Capture images
             "505": "0",   # Image saving mode
+            # Data appending (0=Disable, 1=Enable)
+            "301": "0",   # Code type appending
+            "303": "0",   # Bank number appending
+            "308": "0",   # Code vertex appending
+            "309": "0",   # Code center appending
+            "371": "0",   # Angle appending
+            # Delimiter settings
+            "601": "2C",  # Delimiter character (comma)
+            "602": "2C",  # Inter-delimiter (comma)
         }
 
         # Region configuration storage
@@ -514,8 +523,15 @@ class SRX300Simulator:
                 return ["ER,SHOT,02"]
         except ValueError:
             return ["ER,SHOT,01"]
-        code_data = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
-        img_name = self._generate_and_push_image(code_data, bank)
+
+        # Check if FTP image push is enabled for capture images (WP 504)
+        cap_save = self.op_config.get("504", "0")
+        img_name = ""
+        if cap_save in ("3", "5", "6"):
+            code_data = ""  # no barcode for snapshot
+            img_name, _ = self._generate_and_push_image(code_data, bank, draw_overlay=False)
+        else:
+            img_name = f"SHOT_{bank:02d}.bmp"
         return [f"OK,SHOT,A:\\IMAGE\\{img_name}"]
 
     # ---- Simulated read result ----
@@ -531,38 +547,94 @@ class SRX300Simulator:
         else:
             self.bank_counts[0] += 1
 
+        corners: list[tuple[int, int]] = []
+        center: tuple[int, int] = (0, 0)
+
         # Check if FTP image push is enabled for OK images (WP 500)
         ok_save = self.op_config.get("500", "0")
         if ok_save in ("3", "5", "6"):
-            self._generate_and_push_image(code_data, bank or 1)
+            _, corners = self._generate_and_push_image(code_data, bank or 1, draw_overlay=True)
 
-        return code_data
+        # If corners were not generated (no image push), synthesize some
+        if not corners:
+            rng = random.Random(hash(code_data))
+            cx, cy = 320 + rng.randint(-60, 60), 240 + rng.randint(-40, 40)
+            hw, hh = 80, 30
+            corners = [(cx - hw, cy - hh), (cx + hw, cy - hh),
+                       (cx + hw, cy + hh), (cx - hw, cy + hh)]
+        center = (
+            sum(c[0] for c in corners) // 4,
+            sum(c[1] for c in corners) // 4,
+        )
+
+        # Build the result string with optional appended data
+        result = code_data
+        delim = self._get_delimiter()
+
+        # CODE_VERTEX_APPENDING (308): append TL.x,TL.y,TR.x,TR.y,BR.x,BR.y,BL.x,BL.y
+        if self.op_config.get("308", "0") == "1":
+            vertex_str = ",".join(f"{c[0]},{c[1]}" for c in corners)
+            result += delim + vertex_str
+
+        # CODE_CENTER_APPENDING (309): append cx,cy
+        if self.op_config.get("309", "0") == "1":
+            result += delim + f"{center[0]},{center[1]}"
+
+        # CODE_TYPE_APPENDING (301): append the code type name
+        if self.op_config.get("301", "0") == "1":
+            result += delim + "CODE128"
+
+        # BANK_NUMBER_APPENDING (303): append bank number
+        if self.op_config.get("303", "0") == "1":
+            result += delim + f"{(bank or 1):02d}"
+
+        # ANGLE_APPENDING (371): append the angle
+        if self.op_config.get("371", "0") == "1":
+            angle = random.uniform(-5, 5)
+            result += delim + f"{angle:.1f}"
+
+        return result
+
+    def _get_delimiter(self) -> str:
+        """Return the inter-field delimiter character from config."""
+        # INTER_DELIMITER (602): hex byte value, default 0x2C = comma
+        hex_val = self.op_config.get("602", "2C")
+        try:
+            return chr(int(hex_val, 16))
+        except (ValueError, OverflowError):
+            return ","
 
     # ---- Image generation and FTP push ----
 
     def _generate_and_push_image(
-        self, code_data: str, bank: int, img_width: int = 640, img_height: int = 480
-    ) -> str:
-        """Generate a simulated camera image with barcode and blue bounding box,
-        then push it to the configured FTP server. Returns the image filename."""
+        self, code_data: str, bank: int, img_width: int = 640, img_height: int = 480,
+        draw_overlay: bool = True,
+    ) -> tuple[str, list[tuple[int, int]]]:
+        """Generate a simulated camera image and push it to the configured FTP
+        server. When draw_overlay is True (code read), a bounding box and text
+        are drawn. When False (snapshot/capture), only the raw scene is shown.
+        Returns (filename, corner_coords)."""
         self._image_counter += 1
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"B{bank:02d}_{timestamp}_{self._image_counter:06d}.bmp"
 
         if not _HAS_PIL:
             logger.warning("Pillow not installed; skipping image generation")
-            return filename
+            return filename, []
 
         img, corners = self._render_barcode_image(
-            code_data, bank, img_width, img_height
+            code_data, bank, img_width, img_height, draw_overlay=draw_overlay,
         )
-        logger.info(
-            "Generated image %s  barcode corners: TL=(%d,%d) TR=(%d,%d) BR=(%d,%d) BL=(%d,%d)",
-            filename, *corners[0], *corners[1], *corners[2], *corners[3],
-        )
+        if draw_overlay:
+            logger.info(
+                "Generated image %s  barcode corners: TL=(%d,%d) TR=(%d,%d) BR=(%d,%d) BL=(%d,%d)",
+                filename, *corners[0], *corners[1], *corners[2], *corners[3],
+            )
+        else:
+            logger.info("Generated snapshot image %s", filename)
 
         self._ftp_push_image(img, filename)
-        return filename
+        return filename, corners
 
     @staticmethod
     def _render_barcode_image(
@@ -570,10 +642,13 @@ class SRX300Simulator:
         bank: int,
         img_width: int = 640,
         img_height: int = 480,
+        draw_overlay: bool = True,
     ) -> tuple["Image.Image", list[tuple[int, int]]]:
-        """Render a grayscale camera image with a barcode pattern and a blue
-        bounding box.  Returns (PIL Image, list of 4 corner coordinates
-        [TL, TR, BR, BL])."""
+        """Render a grayscale camera image with a barcode pattern.
+        When draw_overlay is True, a blue bounding box and text labels are
+        drawn (simulating a successful code read). When False (snapshot),
+        only the raw scene with the barcode pattern is shown.
+        Returns (PIL Image, list of 4 corner coordinates [TL, TR, BR, BL])."""
 
         # --- background: noisy gray ---
         img = Image.new("RGB", (img_width, img_height), (200, 200, 200))
@@ -587,11 +662,12 @@ class SRX300Simulator:
                 draw.rectangle([x, y, x + 3, y + 3], fill=(g, g, g))
 
         # --- Compute barcode region with slight rotation ---
+        rng = random.Random(hash(code_data) if code_data else random.randint(0, 2**32))
         angle_deg = rng.uniform(-5, 5)
         angle_rad = math.radians(angle_deg)
 
         # Barcode dimensions in local space
-        bar_count = len(code_data) * 6 + 11  # rough Code‑128-like bar count
+        bar_count = max(len(code_data) * 6 + 11, 20)  # rough Code‑128-like bar count
         bar_w = max(1, min(3, img_width // (bar_count + 20)))
         barcode_w = bar_count * bar_w
         barcode_h = max(40, img_height // 6)
@@ -616,47 +692,49 @@ class SRX300Simulator:
             rotate_point(-hw, +hh),  # bottom-left
         ]
 
-        # --- Draw barcode bars ---
-        # Create the barcode on a small image first, then paste rotated
-        bc_img = Image.new("RGB", (barcode_w, barcode_h), (255, 255, 255))
-        bc_draw = ImageDraw.Draw(bc_img)
+        # --- Draw barcode bars (only if we have code data) ---
+        if code_data:
+            # Create the barcode on a small image first, then paste rotated
+            bc_img = Image.new("RGB", (barcode_w, barcode_h), (255, 255, 255))
+            bc_draw = ImageDraw.Draw(bc_img)
 
-        # Quiet zone
-        x_pos = bar_w * 5
-        for ch in code_data:
-            bits = format(ord(ch), "08b")
-            for bit in bits:
-                if bit == "1":
-                    bc_draw.rectangle(
-                        [x_pos, 2, x_pos + bar_w - 1, barcode_h - 3],
-                        fill=(0, 0, 0),
-                    )
-                x_pos += bar_w
+            # Quiet zone
+            x_pos = bar_w * 5
+            for ch in code_data:
+                bits = format(ord(ch), "08b")
+                for bit in bits:
+                    if bit == "1":
+                        bc_draw.rectangle(
+                            [x_pos, 2, x_pos + bar_w - 1, barcode_h - 3],
+                            fill=(0, 0, 0),
+                        )
+                    x_pos += bar_w
 
-        # Rotate barcode image
-        bc_rotated = bc_img.rotate(
-            -angle_deg, resample=Image.BICUBIC, expand=True, fillcolor=(200, 200, 200)
-        )
-        paste_x = cx - bc_rotated.width // 2
-        paste_y = cy - bc_rotated.height // 2
-        img.paste(bc_rotated, (paste_x, paste_y))
+            # Rotate barcode image
+            bc_rotated = bc_img.rotate(
+                -angle_deg, resample=Image.BICUBIC, expand=True, fillcolor=(200, 200, 200)
+            )
+            paste_x = cx - bc_rotated.width // 2
+            paste_y = cy - bc_rotated.height // 2
+            img.paste(bc_rotated, (paste_x, paste_y))
 
-        # --- Draw blue bounding box around the barcode corners ---
-        box_color = (0, 80, 255)
-        for i in range(4):
-            draw.line([corners[i], corners[(i + 1) % 4]], fill=box_color, width=2)
+        if draw_overlay and code_data:
+            # --- Draw blue bounding box around the barcode corners ---
+            box_color = (0, 80, 255)
+            for i in range(4):
+                draw.line([corners[i], corners[(i + 1) % 4]], fill=box_color, width=2)
 
-        # --- Draw code text below barcode ---
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 14)
-        except (OSError, IOError):
-            font = ImageFont.load_default()
+            # --- Draw code text below barcode ---
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 14)
+            except (OSError, IOError):
+                font = ImageFont.load_default()
 
-        text_y = max(c[1] for c in corners) + 6
-        draw.text((cx - len(code_data) * 4, text_y), code_data, fill=(0, 0, 0), font=font)
+            text_y = max(c[1] for c in corners) + 6
+            draw.text((cx - len(code_data) * 4, text_y), code_data, fill=(0, 0, 0), font=font)
 
-        # --- Draw bank label ---
-        draw.text((8, 8), f"Bank {bank:02d}", fill=(0, 0, 0), font=font)
+            # --- Draw bank label ---
+            draw.text((8, 8), f"Bank {bank:02d}", fill=(0, 0, 0), font=font)
 
         return img, corners
 

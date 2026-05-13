@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "OpenSRX/Code.hpp"
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/ImageServer.hpp"
 #include "OpenSRX/ParamTraits.hpp"
@@ -109,16 +110,18 @@ class Scanner {
      * Blocks until a code is read or the read times out. Uses an unlocked
      * send so that stopReading() can be called from another thread.
      *
-     * @return The read data string, or "ERROR" on timeout.
+     * @return A Code struct with the decoded data and any appended metadata.
+     * @throws std::runtime_error on read timeout or failure.
      */
-    std::string startReading();
+    Code startReading();
 
     /**
      * @brief Start a blocking read operation on a specific bank.
      * @param bank Bank number (1–16).
-     * @return The read data string, or "ERROR" on timeout.
+     * @return A Code struct with the decoded data and any appended metadata.
+     * @throws std::runtime_error on read timeout or failure.
      */
-    std::string startReading(int bank);
+    Code startReading(int bank);
 
     /** @brief Cancel an in-progress read operation. */
     void stopReading();
@@ -458,6 +461,17 @@ class Scanner {
     }
 
    private:
+    /**
+     * @brief Parse a raw read-result string into a Code struct.
+     *
+     * Splits the result by the inter-delimiter and populates optional
+     * fields based on which OperationParam appending settings are enabled.
+     *
+     * @param raw The raw string returned by LON (barcode + appended fields).
+     * @return A populated Code struct.
+     */
+    Code parseReadResult(const std::string& raw);
+
     /**
      * @brief Parse and validate a scanner response string.
      *

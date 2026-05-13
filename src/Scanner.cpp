@@ -1,5 +1,8 @@
 #include "OpenSRX/Scanner.hpp"
 
+#include <sstream>
+#include <vector>
+
 namespace OpenSRX {
 
 std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw) {
@@ -31,10 +34,16 @@ Scanner::Scanner(ICommInterface& comm) : comm(comm) {
 
 // ─── Reading and tuning ─────────────────────────────────────────────────────
 
-std::string Scanner::startReading() { return comm.sendCommandUnlocked("LON"); }
+Code Scanner::startReading() {
+    std::string raw = comm.sendCommandUnlocked("LON");
+    if (raw == "ERROR") throw std::runtime_error("Read failed or timed out");
+    return parseReadResult(raw);
+}
 
-std::string Scanner::startReading(int bank) {
-    return comm.sendCommandUnlocked("LON," + formatBank(bank));
+Code Scanner::startReading(int bank) {
+    std::string raw = comm.sendCommandUnlocked("LON," + formatBank(bank));
+    if (raw == "ERROR") throw std::runtime_error("Read failed or timed out");
+    return parseReadResult(raw);
 }
 
 void Scanner::stopReading() { comm.sendCommandUnlocked("LOFF"); }
@@ -351,6 +360,84 @@ std::string Scanner::checkResponse(const std::string& response) {
     }
 
     return response;
+}
+
+Code Scanner::parseReadResult(const std::string& raw) {
+    Code code;
+
+    // Read the inter-delimiter character (hex byte, default 0x2C = comma)
+    std::string delimHex = getParam<OperationParam::INTER_DELIMITER>();
+    char delim = ',';
+    try {
+        delim = static_cast<char>(std::stoi(delimHex, nullptr, 16));
+    } catch (...) {
+        // fall back to comma
+    }
+
+    // Split the raw result by delimiter
+    std::vector<std::string> fields;
+    std::istringstream stream(raw);
+    std::string token;
+    while (std::getline(stream, token, delim)) {
+        fields.push_back(token);
+    }
+
+    if (fields.empty()) {
+        code.data = raw;
+        return code;
+    }
+
+    // First field is always the barcode data
+    code.data = fields[0];
+    size_t idx = 1;
+
+    // Parse appended fields in the order the scanner appends them:
+    // CODE_VERTEX_APPENDING (308): 8 ints (TL.x, TL.y, TR.x, TR.y, BR.x, BR.y, BL.x, BL.y)
+    if (getParam<OperationParam::CODE_VERTEX_APPENDING>() == Toggle::ENABLE) {
+        if (idx + 8 <= fields.size()) {
+            BoundingBox bb;
+            bb.topLeft = {std::stoi(fields[idx]), std::stoi(fields[idx + 1])};
+            bb.topRight = {std::stoi(fields[idx + 2]), std::stoi(fields[idx + 3])};
+            bb.bottomRight = {std::stoi(fields[idx + 4]), std::stoi(fields[idx + 5])};
+            bb.bottomLeft = {std::stoi(fields[idx + 6]), std::stoi(fields[idx + 7])};
+            code.boundingBox = bb;
+            idx += 8;
+        }
+    }
+
+    // CODE_CENTER_APPENDING (309): 2 ints (cx, cy)
+    if (getParam<OperationParam::CODE_CENTER_APPENDING>() == Toggle::ENABLE) {
+        if (idx + 2 <= fields.size()) {
+            code.center = Point{std::stoi(fields[idx]), std::stoi(fields[idx + 1])};
+            idx += 2;
+        }
+    }
+
+    // CODE_TYPE_APPENDING (301): 1 string
+    if (getParam<OperationParam::CODE_TYPE_APPENDING>() == Toggle::ENABLE) {
+        if (idx < fields.size()) {
+            code.codeType = fields[idx];
+            idx += 1;
+        }
+    }
+
+    // BANK_NUMBER_APPENDING (303): 1 int
+    if (getParam<OperationParam::BANK_NUMBER_APPENDING>() == Toggle::ENABLE) {
+        if (idx < fields.size()) {
+            code.bankNumber = std::stoi(fields[idx]);
+            idx += 1;
+        }
+    }
+
+    // ANGLE_APPENDING (371): 1 float
+    if (getParam<OperationParam::ANGLE_APPENDING>() == Toggle::ENABLE) {
+        if (idx < fields.size()) {
+            code.angle = std::stod(fields[idx]);
+            idx += 1;
+        }
+    }
+
+    return code;
 }
 
 }  // namespace OpenSRX

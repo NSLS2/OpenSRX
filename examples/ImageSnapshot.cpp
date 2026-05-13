@@ -1,13 +1,15 @@
 /**
- * @file ImageReadback.cpp
- * @brief Example: capture and receive images from the scanner via FTP.
+ * @file ImageSnapshot.cpp
+ * @brief Example: take an image snapshot from the scanner via FTP.
  *
- * Starts an embedded FTP server, configures the scanner to send images to
- * it, triggers a read, and saves the received BMP image to disk.
+ * Starts an embedded FTP server, configures the scanner to send capture
+ * images to it, triggers a snapshot (SHOT command), and saves the received
+ * BMP image to disk. Unlike ImageReadback, this does not perform a barcode
+ * read — it simply captures the current camera view.
  *
  * Usage:
- *   ImageReadback --ip 192.168.100.100 --port 9004 --local-ip 192.168.100.50
- *   ImageReadback --serial /dev/ttyUSB0 --local-ip 192.168.100.50
+ *   ImageSnapshot --ip 192.168.100.100 --port 9004 --local-ip 192.168.100.50
+ *   ImageSnapshot --serial /dev/ttyUSB0 --local-ip 192.168.100.50
  */
 
 #include <argparse/argparse.hpp>
@@ -18,7 +20,7 @@
 #include "OpenSRX/OpenSRX.hpp"
 
 int main(int argc, char* argv[]) {
-    argparse::ArgumentParser program("ImageReadback");
+    argparse::ArgumentParser program("ImageSnapshot");
 
     auto& group = program.add_mutually_exclusive_group(true);
     group.add_argument("--ip").help("IP address of the scanner");
@@ -30,9 +32,14 @@ int main(int argc, char* argv[]) {
         .help("This machine's IP address as reachable from the scanner")
         .required();
 
+    program.add_argument("--bank")
+        .help("Bank number for the snapshot (default: 1)")
+        .default_value(1)
+        .scan<'i', int>();
+
     program.add_argument("-o", "--output")
         .help("Output BMP file path")
-        .default_value(std::string("captured_image.bmp"));
+        .default_value(std::string("snapshot.bmp"));
 
     program.add_argument("-d", "--debug")
         .help("Enable debug logging")
@@ -66,25 +73,23 @@ int main(int argc, char* argv[]) {
     OpenSRX::Scanner scanner(*iface);
     std::cout << "Connected to " << scanner.getModel() << std::endl;
 
-    // Configure the scanner to save read-OK images as BMP via FTP
+    // Configure the scanner to save capture images as BMP via FTP
     scanner.setParam<OpenSRX::OperationParam::IMAGE_FORMAT>(OpenSRX::ImageFormat::BMP);
 
-    // Start the embedded FTP server and configure the scanner
+    // Start the FTP server — enable only capture image saving
+    OpenSRX::ImageSaveConfig saveConfig;
+    saveConfig.readOK = false;
+    saveConfig.capture = true;
+
     std::string localIP = program.get("--local-ip");
-    scanner.startImageServer(localIP);
+    scanner.startImageServer(localIP, saveConfig);
     std::cout << "FTP server started on " << localIP << ":" << scanner.getImageServer()->getPort()
               << std::endl;
 
-    // Trigger a read — the scanner will capture an image and FTP it to us
-    std::cout << "Starting read (waiting for code + image)..." << std::endl;
-    try {
-        OpenSRX::Code code = scanner.startReading();
-        std::cout << "Read result: " << code.data << std::endl;
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Read failed: " << e.what() << std::endl;
-        scanner.stopImageServer();
-        return 1;
-    }
+    // Take a snapshot
+    int bank = program.get<int>("--bank");
+    std::cout << "Taking snapshot (bank " << bank << ")..." << std::endl;
+    scanner.captureImage(bank);
 
     // Wait for the image to arrive via FTP
     std::cout << "Waiting for image..." << std::endl;

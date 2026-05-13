@@ -64,18 +64,18 @@ int main(int argc, char* argv[]) {
 
     // Trigger a read
     std::cout << "Starting read (waiting for code)..." << std::endl;
-    std::string result;
-    if (program.is_used("--bank")) {
-        result = scanner.startReading(program.get<int>("--bank"));
-    } else {
-        result = scanner.startReading();
-    }
-
-    if (result == "ERROR") {
-        std::cerr << "Read timed out or failed." << std::endl;
+    try {
+        OpenSRX::Code result;
+        if (program.is_used("--bank")) {
+            result = scanner.startReading(program.get<int>("--bank"));
+        } else {
+            result = scanner.startReading();
+        }
+        std::cout << "Read result: " << result.data << std::endl;
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Read failed: " << e.what() << std::endl;
         return 1;
     }
 
-    std::cout << "Read result: " << result << std::endl;
     return 0;
 }

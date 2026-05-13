@@ -16,6 +16,7 @@
 
 // ── Public API headers ──────────────────────────────────────────────────────
 #include "OpenSRX/BankParam.hpp"
+#include "OpenSRX/Code.hpp"
 #include "OpenSRX/CommParam.hpp"
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/Image.hpp"
