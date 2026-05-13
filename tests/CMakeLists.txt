@@ -14,6 +14,7 @@ add_executable(TestOpenSRX
     TestOpenSRX.cpp
     TestICommInterface.cpp
     TestTimestamp.cpp
+    TestScannerParams.cpp
 )
 
 target_link_libraries(TestOpenSRX

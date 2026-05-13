@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/OpenSRX.hpp"
@@ -125,7 +126,7 @@ class Scanner {
         std::ostringstream cmd;
         cmd << "RB," << std::setw(2) << std::setfill('0') << bank << std::setw(3)
             << std::setfill('0') << static_cast<int>(P);
-        std::string raw = comm.sendCommand(cmd.str());
+        std::string raw = checkResponse(comm.sendCommand(cmd.str()));
         return parseParam<paramType(P)>(raw);
     }
 
@@ -140,7 +141,7 @@ class Scanner {
         std::ostringstream cmd;
         cmd << "WB," << std::setw(2) << std::setfill('0') << bank << std::setw(3)
             << std::setfill('0') << static_cast<int>(P) << "," << formatParam<paramType(P)>(value);
-        comm.sendCommand(cmd.str());
+        checkResponse(comm.sendCommand(cmd.str()));
     }
 
     // ─── Tuning parameters (WC/RC) ─────────────────────────────────────────
@@ -153,7 +154,7 @@ class Scanner {
     template <TuningParam P>
     auto getParam() -> ParamCppT<paramType(P)> {
         std::string cmd = "RC," + std::to_string(static_cast<int>(P));
-        std::string raw = comm.sendCommand(cmd);
+        std::string raw = checkResponse(comm.sendCommand(cmd));
         return parseParam<paramType(P)>(raw);
     }
 
@@ -166,7 +167,7 @@ class Scanner {
     void setParam(const ParamCppT<paramType(P)>& value) {
         std::string cmd =
             "WC," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
-        comm.sendCommand(cmd);
+        checkResponse(comm.sendCommand(cmd));
     }
 
     // ─── Operation parameters (WP/RP) ──────────────────────────────────────
@@ -179,7 +180,7 @@ class Scanner {
     template <OperationParam P>
     auto getParam() -> ParamCppT<paramType(P)> {
         std::string cmd = "RP," + std::to_string(static_cast<int>(P));
-        std::string raw = comm.sendCommand(cmd);
+        std::string raw = checkResponse(comm.sendCommand(cmd));
         return parseParam<paramType(P)>(raw);
     }
 
@@ -192,7 +193,7 @@ class Scanner {
     void setParam(const ParamCppT<paramType(P)>& value) {
         std::string cmd =
             "WP," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
-        comm.sendCommand(cmd);
+        checkResponse(comm.sendCommand(cmd));
     }
 
     // ─── Communication parameters (WN/RN) ──────────────────────────────────
@@ -205,7 +206,7 @@ class Scanner {
     template <CommParam P>
     auto getParam() -> ParamCppT<paramType(P)> {
         std::string cmd = "RN," + std::to_string(static_cast<int>(P));
-        std::string raw = comm.sendCommand(cmd);
+        std::string raw = checkResponse(comm.sendCommand(cmd));
         return parseParam<paramType(P)>(raw);
     }
 
@@ -218,10 +219,11 @@ class Scanner {
     void setParam(const ParamCppT<paramType(P)>& value) {
         std::string cmd =
             "WN," + std::to_string(static_cast<int>(P)) + "," + formatParam<paramType(P)>(value);
-        comm.sendCommand(cmd);
+        checkResponse(comm.sendCommand(cmd));
     }
 
    private:
+    std::string checkResponse(const std::string& response);
     ICommInterface& comm;
     std::string model, firmwareVersion, macAddress;
 };
