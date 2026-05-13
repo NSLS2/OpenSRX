@@ -27,9 +27,10 @@ enum class StopBits {
 
 /// Serial port flow control setting.
 enum class FlowControl {
-    NONE = asio::serial_port_base::flow_control::none,        ///< No flow control.
-    RTS_CTS = asio::serial_port_base::flow_control::hardware, ///< Hardware (RTS/CTS) flow control.
-    XON_XOFF = asio::serial_port_base::flow_control::software,///< Software (XON/XOFF) flow control.
+    NONE = asio::serial_port_base::flow_control::none,         ///< No flow control.
+    RTS_CTS = asio::serial_port_base::flow_control::hardware,  ///< Hardware (RTS/CTS) flow control.
+    XON_XOFF =
+        asio::serial_port_base::flow_control::software,  ///< Software (XON/XOFF) flow control.
 };
 
 /**

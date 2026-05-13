@@ -20,14 +20,13 @@ namespace OpenSRX {
 /// Write a little-endian value into a buffer.
 template <typename T>
 static void writeLE(uint8_t* dst, T value) {
-    for (size_t i = 0; i < sizeof(T); ++i)
-        dst[i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+    for (size_t i = 0; i < sizeof(T); ++i) dst[i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
 }
 
 /// Generate a minimal valid BMP file in memory.
 /// Pixels are written bottom-to-top (standard BMP row order).
 static std::vector<uint8_t> makeBMP(int width, int height, int bitsPerPx,
-                                     const std::vector<uint8_t>& pixelRows) {
+                                    const std::vector<uint8_t>& pixelRows) {
     int rowBytes = width * (bitsPerPx / 8);
     int rowPadding = (4 - (rowBytes % 4)) % 4;
     int paddedRowBytes = rowBytes + rowPadding;
@@ -49,9 +48,9 @@ static std::vector<uint8_t> makeBMP(int width, int height, int bitsPerPx,
     writeLE<uint32_t>(bmp.data() + 14, 40);
     writeLE<int32_t>(bmp.data() + 18, width);
     writeLE<int32_t>(bmp.data() + 22, height);
-    writeLE<uint16_t>(bmp.data() + 26, 1);         // planes
+    writeLE<uint16_t>(bmp.data() + 26, 1);  // planes
     writeLE<uint16_t>(bmp.data() + 28, bitsPerPx);
-    writeLE<uint32_t>(bmp.data() + 30, 0);         // compression = BI_RGB
+    writeLE<uint32_t>(bmp.data() + 30, 0);  // compression = BI_RGB
 
     // 8-bit grayscale palette
     if (bitsPerPx == 8) {
@@ -60,7 +59,7 @@ static std::vector<uint8_t> makeBMP(int width, int height, int bitsPerPx,
             bmp[off + 0] = static_cast<uint8_t>(i);  // B
             bmp[off + 1] = static_cast<uint8_t>(i);  // G
             bmp[off + 2] = static_cast<uint8_t>(i);  // R
-            bmp[off + 3] = 0;                         // reserved
+            bmp[off + 3] = 0;                        // reserved
         }
     }
 
@@ -107,8 +106,8 @@ TEST_F(TestBMPDecoder, Decode24Bit) {
     //   top row:    red(255,0,0), white(255,255,255)
     // BMP stores bottom row first.
     std::vector<uint8_t> pixels = {
-        255, 0,   0,    0,   255, 0,     // bottom row: (B,G,R) = blue, green
-        0,   0,   255,  255, 255, 255,   // top row: red, white
+        255, 0, 0,   0,   255, 0,    // bottom row: (B,G,R) = blue, green
+        0,   0, 255, 255, 255, 255,  // top row: red, white
     };
 
     auto bmpData = makeBMP(2, 2, 24, pixels);

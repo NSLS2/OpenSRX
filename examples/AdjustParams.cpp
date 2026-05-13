@@ -24,9 +24,7 @@ int main(int argc, char* argv[]) {
     group.add_argument("--ip").help("IP address of the scanner");
     group.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
 
-    program.add_argument("--port")
-        .help("Port number (required with --ip)")
-        .scan<'i', int>();
+    program.add_argument("--port").help("Port number (required with --ip)").scan<'i', int>();
 
     program.add_argument("--bank")
         .help("Bank number for bank parameter operations (default: 1)")
@@ -58,8 +56,8 @@ int main(int argc, char* argv[]) {
     if (program.is_used("--serial")) {
         iface = std::make_unique<OpenSRX::SerialInterface>(program.get("--serial"));
     } else {
-        iface = std::make_unique<OpenSRX::SocketInterface>(
-            program.get("--ip"), program.get<int>("--port"));
+        iface = std::make_unique<OpenSRX::SocketInterface>(program.get("--ip"),
+                                                           program.get<int>("--port"));
     }
 
     OpenSRX::Scanner scanner(*iface);

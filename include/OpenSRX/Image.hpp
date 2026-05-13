@@ -18,8 +18,8 @@ namespace OpenSRX {
 struct Image {
     int width = 0;
     int height = 0;
-    int channels = 0;             ///< bytes per pixel (1, 3, or 4)
-    std::vector<uint8_t> data;    ///< raw pixel buffer (width * height * channels)
+    int channels = 0;           ///< bytes per pixel (1, 3, or 4)
+    std::vector<uint8_t> data;  ///< raw pixel buffer (width * height * channels)
 };
 
 /**

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fineftp/server.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -8,8 +10,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-
-#include <fineftp/server.h>
 
 #include "OpenSRX/Image.hpp"
 
@@ -31,8 +31,7 @@ class ImageServer {
      * @param username   FTP username the scanner will log in with.
      * @param password   FTP password the scanner will log in with.
      */
-    ImageServer(uint16_t port = 0,
-                const std::string& username = "opensrx",
+    ImageServer(uint16_t port = 0, const std::string& username = "opensrx",
                 const std::string& password = "opensrx");
 
     ~ImageServer();

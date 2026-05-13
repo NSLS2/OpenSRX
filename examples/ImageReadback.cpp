@@ -24,9 +24,7 @@ int main(int argc, char* argv[]) {
     group.add_argument("--ip").help("IP address of the scanner");
     group.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
 
-    program.add_argument("--port")
-        .help("Port number (required with --ip)")
-        .scan<'i', int>();
+    program.add_argument("--port").help("Port number (required with --ip)").scan<'i', int>();
 
     program.add_argument("--local-ip")
         .help("This machine's IP address as reachable from the scanner")
@@ -61,8 +59,8 @@ int main(int argc, char* argv[]) {
     if (program.is_used("--serial")) {
         iface = std::make_unique<OpenSRX::SerialInterface>(program.get("--serial"));
     } else {
-        iface = std::make_unique<OpenSRX::SocketInterface>(
-            program.get("--ip"), program.get<int>("--port"));
+        iface = std::make_unique<OpenSRX::SocketInterface>(program.get("--ip"),
+                                                           program.get<int>("--port"));
     }
 
     OpenSRX::Scanner scanner(*iface);
@@ -74,8 +72,8 @@ int main(int argc, char* argv[]) {
     // Start the embedded FTP server and configure the scanner
     std::string localIP = program.get("--local-ip");
     scanner.startImageServer(localIP);
-    std::cout << "FTP server started on " << localIP << ":"
-              << scanner.getImageServer()->getPort() << std::endl;
+    std::cout << "FTP server started on " << localIP << ":" << scanner.getImageServer()->getPort()
+              << std::endl;
 
     // Trigger a read — the scanner will capture an image and FTP it to us
     std::cout << "Starting read (waiting for code + image)..." << std::endl;
@@ -90,9 +88,8 @@ int main(int argc, char* argv[]) {
     // Wait for the image to arrive via FTP
     std::cout << "Waiting for image..." << std::endl;
     OpenSRX::Image img = scanner.waitForImage();
-    std::cout << "Received image: " << img.width << "x" << img.height
-              << " (" << img.channels << " channels, " << img.data.size() << " bytes)"
-              << std::endl;
+    std::cout << "Received image: " << img.width << "x" << img.height << " (" << img.channels
+              << " channels, " << img.data.size() << " bytes)" << std::endl;
 
     // Write raw pixel data to file
     std::string outPath = program.get("-o");

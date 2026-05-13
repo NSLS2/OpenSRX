@@ -188,8 +188,7 @@ TEST_F(TestScanner, StartTuningFailureCodeDetectionImpossible) {
         .WillOnce(Return("Tuning FAILED,100ms,00000201"));
     auto [succeeded, advice, reason] = pScanner->startTuning(5);
     EXPECT_FALSE(succeeded);
-    EXPECT_EQ(advice,
-              TuningAdvice::CONSIDER_INSTALLATION_LIGHTING_PRINTING_CONDITIONS);
+    EXPECT_EQ(advice, TuningAdvice::CONSIDER_INSTALLATION_LIGHTING_PRINTING_CONDITIONS);
     EXPECT_EQ(reason, TuningFailureReason::CODE_DETECTION_IMPOSSIBLE);
 }
 
@@ -234,22 +233,19 @@ TEST_F(TestScanner, DisablePointer) {
 // ─── Time settings ───────────────────────────────────────────────────────────
 
 TEST_F(TestScanner, SetTime) {
-    EXPECT_CALL(*pMockComm, sendCommand("TMSET,20260513101530"))
-        .WillOnce(Return("OK,TMSET"));
+    EXPECT_CALL(*pMockComm, sendCommand("TMSET,20260513101530")).WillOnce(Return("OK,TMSET"));
     Timestamp ts(30, 15, 10, 13, 5, 2026);
     pScanner->setTime(ts);
 }
 
 TEST_F(TestScanner, SetTimeZeroPadded) {
-    EXPECT_CALL(*pMockComm, sendCommand("TMSET,20260101000000"))
-        .WillOnce(Return("OK,TMSET"));
+    EXPECT_CALL(*pMockComm, sendCommand("TMSET,20260101000000")).WillOnce(Return("OK,TMSET"));
     Timestamp ts(0, 0, 0, 1, 1, 2026);
     pScanner->setTime(ts);
 }
 
 TEST_F(TestScanner, GetTime) {
-    EXPECT_CALL(*pMockComm, sendCommand("TMGET"))
-        .WillOnce(Return("OK,TMGET,20260315143000"));
+    EXPECT_CALL(*pMockComm, sendCommand("TMGET")).WillOnce(Return("OK,TMGET,20260315143000"));
     auto ts = pScanner->getTime();
     EXPECT_EQ(ts.year, 2026);
     EXPECT_EQ(ts.month, 3);

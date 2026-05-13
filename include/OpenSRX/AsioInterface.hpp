@@ -20,7 +20,7 @@ class AsioInterface : public ICommInterface {
 
     /**
      * @brief Sends a command over the Asio stream and reads the response.
-     * 
+     *
      * This method acquires the communication mutex before sending, so it can be
      * safely called from multiple threads. For blocking commands, sendCommandUnlocked()
      * can be used to allow concurrent cancellation commands from another thread.

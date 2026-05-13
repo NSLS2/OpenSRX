@@ -20,8 +20,7 @@ class TestScanner : public ::testing::Test {
         EXPECT_CALL(*pMockComm, describe()).WillRepeatedly(Return("mock://scanner"));
         EXPECT_CALL(*pMockComm, sendCommand("KEYENCE"))
             .WillOnce(Return("OK,KEYENCE,SR-X300,V1.2.3"));
-        EXPECT_CALL(*pMockComm, sendCommand("EMAC"))
-            .WillOnce(Return("OK,EMAC,001122334455"));
+        EXPECT_CALL(*pMockComm, sendCommand("EMAC")).WillOnce(Return("OK,EMAC,001122334455"));
         pScanner = std::make_unique<Scanner>(*pMockComm);
     }
     void TearDown() override {}

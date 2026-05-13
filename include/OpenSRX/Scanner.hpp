@@ -22,16 +22,16 @@ enum class CommandStatus {
 
 /// Scanner error status codes.
 enum class ErrorStatus {
-    NO_ERROR = 0,              ///< No error.
-    SYSTEM_ERROR = 1,          ///< System error.
-    UPDATE_ERROR = 2,          ///< Update error.
-    SET_VALUE_ERROR = 3,       ///< Set value error.
-    DUPLICATE_IP_ERROR = 4,    ///< Duplicate IP address detected.
-    BUFF_OVERFLOW_ERROR = 5,   ///< Buffer overflow error.
-    PLC_LINK_ERROR = 6,        ///< PLC link error.
-    PROFINET_ERROR = 7,        ///< PROFINET error.
-    LUA_SCRIPT_ERROR = 8,      ///< Lua script error.
-    CONNECTION_ERROR = 9,      ///< Host connection error.
+    NO_ERROR = 0,             ///< No error.
+    SYSTEM_ERROR = 1,         ///< System error.
+    UPDATE_ERROR = 2,         ///< Update error.
+    SET_VALUE_ERROR = 3,      ///< Set value error.
+    DUPLICATE_IP_ERROR = 4,   ///< Duplicate IP address detected.
+    BUFF_OVERFLOW_ERROR = 5,  ///< Buffer overflow error.
+    PLC_LINK_ERROR = 6,       ///< PLC link error.
+    PROFINET_ERROR = 7,       ///< PROFINET error.
+    LUA_SCRIPT_ERROR = 8,     ///< Lua script error.
+    CONNECTION_ERROR = 9,     ///< Host connection error.
 };
 
 /// Scanner busy status.
@@ -45,10 +45,11 @@ enum class BusyStatus {
 
 /// Advice returned by tuning on how to improve results.
 enum class TuningAdvice {
-    NONE = 0,                                                ///< No advice.
-    USE_AN_IMAGE_FILTER = 1,                                 ///< Try using an image filter.
-    CONSIDER_INSTALLATION_LIGHTING_PRINTING_CONDITIONS = 2,  ///< Check installation/lighting/printing.
-    BRIGHTNESS_INSUFFICIENT = 4,                             ///< Brightness is insufficient.
+    NONE = 0,                 ///< No advice.
+    USE_AN_IMAGE_FILTER = 1,  ///< Try using an image filter.
+    CONSIDER_INSTALLATION_LIGHTING_PRINTING_CONDITIONS =
+        2,                        ///< Check installation/lighting/printing.
+    BRIGHTNESS_INSUFFICIENT = 4,  ///< Brightness is insufficient.
 };
 
 /// Reason for a tuning failure.
@@ -70,11 +71,11 @@ std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw);
  * SEND_BY_FTP. When false the parameter is left unchanged.
  */
 struct ImageSaveConfig {
-    bool readOK = true;            ///< SAVE_DEST_READ_OK (500)
-    bool verificationNG = false;   ///< SAVE_DEST_VERIFICATION_NG (501)
-    bool readError = false;        ///< SAVE_DEST_READ_ERROR (502)
-    bool unstable = false;         ///< SAVE_DEST_UNSTABLE (503)
-    bool capture = false;          ///< SAVE_DEST_CAPTURE (504)
+    bool readOK = true;           ///< SAVE_DEST_READ_OK (500)
+    bool verificationNG = false;  ///< SAVE_DEST_VERIFICATION_NG (501)
+    bool readError = false;       ///< SAVE_DEST_READ_ERROR (502)
+    bool unstable = false;        ///< SAVE_DEST_UNSTABLE (503)
+    bool capture = false;         ///< SAVE_DEST_CAPTURE (504)
 };
 
 /**
@@ -308,10 +309,8 @@ class Scanner {
      * @param username    FTP username.
      * @param password    FTP password.
      */
-    void startImageServer(const std::string& localIP,
-                          ImageSaveConfig saveConfig = {},
-                          uint16_t port = 0,
-                          const std::string& username = "opensrx",
+    void startImageServer(const std::string& localIP, ImageSaveConfig saveConfig = {},
+                          uint16_t port = 0, const std::string& username = "opensrx",
                           const std::string& password = "opensrx");
 
     /** Stop the embedded FTP image server. */
@@ -472,10 +471,10 @@ class Scanner {
      */
     std::string checkResponse(const std::string& response);
 
-    ICommInterface& comm;              ///< Communication interface to the scanner.
-    std::string model;                 ///< Scanner model string.
-    std::string firmwareVersion;       ///< Scanner firmware version string.
-    std::string macAddress;            ///< Scanner MAC address string.
+    ICommInterface& comm;                      ///< Communication interface to the scanner.
+    std::string model;                         ///< Scanner model string.
+    std::string firmwareVersion;               ///< Scanner firmware version string.
+    std::string macAddress;                    ///< Scanner MAC address string.
     std::unique_ptr<ImageServer> imageServer;  ///< Embedded FTP image server (if started).
 
     /// Previous SAVE_DEST values saved by startImageServer, restored on stop.

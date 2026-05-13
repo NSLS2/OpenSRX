@@ -12,8 +12,7 @@ TEST_F(TestScanner, ConstructorParsesModelAndFirmware) {
 TEST(TestScannerStandalone, ConstructorThrowsOnInvalidVersionInfo) {
     StrictMock<MockCommInterface> mockComm;
     EXPECT_CALL(mockComm, describe()).WillRepeatedly(Return("mock://scanner"));
-    EXPECT_CALL(mockComm, sendCommand("KEYENCE"))
-        .WillOnce(Return("OK,KEYENCE,InvalidNoComma"));
+    EXPECT_CALL(mockComm, sendCommand("KEYENCE")).WillOnce(Return("OK,KEYENCE,InvalidNoComma"));
     EXPECT_THROW(Scanner scanner(mockComm), std::runtime_error);
 }
 
@@ -97,8 +96,7 @@ TEST_F(TestScanner, GetBankParamIntVector) {
 TEST_F(TestScanner, SetBankParamIntVector) {
     // QR_LENGTH_LIMITATION_VALUE = 701, bank 1, {5, 200} -> "WB,01701,5:200"
     EXPECT_CALL(*pMockComm, sendCommand("WB,01701,5:200")).WillOnce(Return("OK,WB"));
-    pScanner->setParam<OpenSRX::BankParam::QR_LENGTH_LIMITATION_VALUE>(1,
-                                                                       std::vector<int>{5, 200});
+    pScanner->setParam<OpenSRX::BankParam::QR_LENGTH_LIMITATION_VALUE>(1, std::vector<int>{5, 200});
 }
 
 TEST_F(TestScanner, GetBankParamFilterType) {
@@ -367,14 +365,12 @@ TEST_F(TestScanner, SetBankParamThrowsInvalidArgumentOnMismatchedFormat) {
 
 TEST_F(TestScanner, SetBankParamThrowsOutOfRangeOnParam1OutOfRange) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,2"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::out_of_range);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::out_of_range);
 }
 
 TEST_F(TestScanner, SetBankParamThrowsOutOfRangeOnParam2OutOfRange) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,3"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::out_of_range);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::out_of_range);
 }
 
 TEST_F(TestScanner, SetBankParamThrowsInvalidArgumentOnParam2NotHex) {
@@ -391,8 +387,7 @@ TEST_F(TestScanner, SetBankParamThrowsOutOfRangeOnParam2HexOutOfRange) {
 
 TEST_F(TestScanner, SetBankParamThrowsRuntimeErrorOnExecutionError) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,20"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::runtime_error);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::runtime_error);
 }
 
 TEST_F(TestScanner, SetBankParamThrowsOverflowErrorOnBufferOverflow) {
@@ -403,8 +398,7 @@ TEST_F(TestScanner, SetBankParamThrowsOverflowErrorOnBufferOverflow) {
 
 TEST_F(TestScanner, SetBankParamThrowsRuntimeErrorOnDeviceFault) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,99"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::runtime_error);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::runtime_error);
 }
 
 TEST_F(TestScanner, SetTuningParamThrowsOnError) {
@@ -415,16 +409,15 @@ TEST_F(TestScanner, SetTuningParamThrowsOnError) {
 
 TEST_F(TestScanner, SetOperationParamThrowsOnError) {
     EXPECT_CALL(*pMockComm, sendCommand("WP,101,0")).WillOnce(Return("ER,WP,3"));
-    EXPECT_THROW(
-        pScanner->setParam<OpenSRX::OperationParam::TIMING_MODE>(OpenSRX::TimingMode::LEVEL_TRIGGER),
-        std::out_of_range);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::OperationParam::TIMING_MODE>(
+                     OpenSRX::TimingMode::LEVEL_TRIGGER),
+                 std::out_of_range);
 }
 
 TEST_F(TestScanner, SetCommParamThrowsOnError) {
     EXPECT_CALL(*pMockComm, sendCommand("WN,200,10.0.0.1")).WillOnce(Return("ER,WN,20"));
-    EXPECT_THROW(
-        pScanner->setParam<OpenSRX::CommParam::IP_ADDRESS>(std::string("10.0.0.1")),
-        std::runtime_error);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::CommParam::IP_ADDRESS>(std::string("10.0.0.1")),
+                 std::runtime_error);
 }
 
 TEST_F(TestScanner, SetParamSucceedsOnOKResponse) {
@@ -434,14 +427,12 @@ TEST_F(TestScanner, SetParamSucceedsOnOKResponse) {
 
 TEST_F(TestScanner, SetBankParamThrowsRuntimeErrorOnMalformedError) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,abc"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::runtime_error);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::runtime_error);
 }
 
 TEST_F(TestScanner, SetBankParamThrowsRuntimeErrorOnUnknownErrorCode) {
     EXPECT_CALL(*pMockComm, sendCommand("WB,01100,500")).WillOnce(Return("ER,WB,42"));
-    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500),
-                 std::runtime_error);
+    EXPECT_THROW(pScanner->setParam<OpenSRX::BankParam::EXPOSURE_TIME>(1, 500), std::runtime_error);
 }
 
 // ─── Read error response handling tests ─────────────────────────────────────

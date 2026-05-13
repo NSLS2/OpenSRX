@@ -40,8 +40,8 @@ class SocketInterface : public AsioInterface<asio::ip::tcp::socket> {
                         int threadPoolSize = 4);
 
    private:
-    std::string ip;   ///< Scanner IP address.
-    int port;         ///< Scanner command port.
+    std::string ip;  ///< Scanner IP address.
+    int port;        ///< Scanner command port.
 
     /// FTP server instance (heap-allocated because FtpServer is non-copyable).
     std::unique_ptr<fineftp::FtpServer> pFtpServer = nullptr;

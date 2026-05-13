@@ -1,19 +1,18 @@
 #include "OpenSRX/ImageServer.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <set>
 
-#include <spdlog/spdlog.h>
-
 namespace fs = std::filesystem;
 
 namespace OpenSRX {
 
-ImageServer::ImageServer(uint16_t port, const std::string& username,
-                         const std::string& password)
+ImageServer::ImageServer(uint16_t port, const std::string& username, const std::string& password)
     : port(port), username(username), password(password) {
     // Create a temporary directory for FTP file storage
     std::string tmpl = (fs::temp_directory_path() / "opensrx-ftp-XXXXXX").string();
@@ -21,8 +20,7 @@ ImageServer::ImageServer(uint16_t port, const std::string& username,
     buf.push_back('\0');
 
     char* result = mkdtemp(buf.data());
-    if (!result)
-        throw std::runtime_error("Failed to create temporary directory for ImageServer");
+    if (!result) throw std::runtime_error("Failed to create temporary directory for ImageServer");
 
     rootPath = std::string(result);
     spdlog::info("ImageServer: created temp directory {}", rootPath);
