@@ -69,8 +69,7 @@ TEST_F(TestScanner, StartReadingParsesVertexData) {
 }
 
 TEST_F(TestScanner, StartReadingParsesCenterAndCodeType) {
-    EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON"))
-        .WillOnce(Return("DATA,100,200,CODE128"));
+    EXPECT_CALL(*pMockComm, sendCommandUnlocked("LON")).WillOnce(Return("DATA,100,200,CODE128"));
     EXPECT_CALL(*pMockComm, sendCommand("RP,602")).WillOnce(Return("OK,RP,2C"));
     EXPECT_CALL(*pMockComm, sendCommand("RP,308")).WillOnce(Return("OK,RP,0"));
     EXPECT_CALL(*pMockComm, sendCommand("RP,309")).WillOnce(Return("OK,RP,1"));  // center ON

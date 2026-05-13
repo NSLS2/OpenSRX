@@ -40,12 +40,12 @@ struct BoundingBox {
  * CODE_VERTEX_APPENDING, CODE_CENTER_APPENDING, CODE_TYPE_APPENDING).
  */
 struct Code {
-    std::string data;                          ///< The decoded barcode string.
-    std::optional<BoundingBox> boundingBox;    ///< Code vertex positions (param 308).
-    std::optional<Point> center;               ///< Code center position (param 309).
-    std::optional<std::string> codeType;       ///< Code type name (param 301).
-    std::optional<int> bankNumber;             ///< Bank number (param 303).
-    std::optional<double> angle;               ///< Decode angle in degrees (param 371).
+    std::string data;                        ///< The decoded barcode string.
+    std::optional<BoundingBox> boundingBox;  ///< Code vertex positions (param 308).
+    std::optional<Point> center;             ///< Code center position (param 309).
+    std::optional<std::string> codeType;     ///< Code type name (param 301).
+    std::optional<int> bankNumber;           ///< Bank number (param 303).
+    std::optional<double> angle;             ///< Decode angle in degrees (param 371).
 };
 
 }  // namespace OpenSRX
