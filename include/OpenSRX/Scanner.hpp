@@ -55,6 +55,20 @@ enum class TuningFailureReason {
 
 std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw);
 
+/**
+ * @brief Configuration for which image types to save via FTP.
+ *
+ * Each flag, when true, sets the corresponding SAVE_DEST parameter to
+ * SEND_BY_FTP. When false the parameter is left unchanged.
+ */
+struct ImageSaveConfig {
+    bool readOK = true;            ///< SAVE_DEST_READ_OK (500)
+    bool verificationNG = false;   ///< SAVE_DEST_VERIFICATION_NG (501)
+    bool readError = false;        ///< SAVE_DEST_READ_ERROR (502)
+    bool unstable = false;         ///< SAVE_DEST_UNSTABLE (503)
+    bool capture = false;          ///< SAVE_DEST_CAPTURE (504)
+};
+
 class Scanner {
    public:
     Scanner(ICommInterface& comm);
@@ -127,14 +141,20 @@ class Scanner {
      *
      * The server listens on a free port by default. The scanner's FTP IP,
      * username, password, and port parameters are written automatically.
+     * Image saving destinations selected in @p saveConfig are set to
+     * SEND_BY_FTP; they are restored to their previous values when
+     * stopImageServer() is called.
      *
-     * @param localIP   The IP address of this machine as reachable from the
-     *                  scanner (e.g. "192.168.1.100").
-     * @param port      FTP port (0 = OS picks a free port).
-     * @param username  FTP username.
-     * @param password  FTP password.
+     * @param localIP     The IP address of this machine as reachable from the
+     *                    scanner (e.g. "192.168.1.100").
+     * @param saveConfig  Which image types to send via FTP (default: read OK only).
+     * @param port        FTP port (0 = OS picks a free port).
+     * @param username    FTP username.
+     * @param password    FTP password.
      */
-    void startImageServer(const std::string& localIP, uint16_t port = 0,
+    void startImageServer(const std::string& localIP,
+                          ImageSaveConfig saveConfig = {},
+                          uint16_t port = 0,
                           const std::string& username = "opensrx",
                           const std::string& password = "opensrx");
 
@@ -287,6 +307,16 @@ class Scanner {
     ICommInterface& comm;
     std::string model, firmwareVersion, macAddress;
     std::unique_ptr<ImageServer> imageServer;
+
+    /// Previous SAVE_DEST values saved by startImageServer, restored on stop.
+    struct SavedImageDests {
+        ImageSavingDestination readOK;
+        ImageSavingDestination verificationNG;
+        ImageSavingDestination readError;
+        ImageSavingDestination unstable;
+        ImageSavingDestination capture;
+    };
+    std::unique_ptr<SavedImageDests> savedImageDests;
 };
 
 }  // namespace OpenSRX

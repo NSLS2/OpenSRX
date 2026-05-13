@@ -255,7 +255,9 @@ void Scanner::clearPLCLinkError() {
 
 // ─── Image server ────────────────────────────────────────────────────────────
 
-void Scanner::startImageServer(const std::string& localIP, uint16_t port,
+void Scanner::startImageServer(const std::string& localIP,
+                               ImageSaveConfig saveConfig,
+                               uint16_t port,
                                const std::string& username,
                                const std::string& password) {
     if (imageServer && imageServer->isRunning())
@@ -269,12 +271,42 @@ void Scanner::startImageServer(const std::string& localIP, uint16_t port,
     setParam<CommParam::FTP_USER_NAME>(username);
     setParam<CommParam::FTP_PASSWORD>(password);
     setParam<CommParam::FTP_REMOTE_PORT>(static_cast<int>(imageServer->getPort()));
+
+    // Save current image saving destinations so we can restore on stop
+    savedImageDests = std::make_unique<SavedImageDests>();
+    savedImageDests->readOK = getParam<OperationParam::SAVE_DEST_READ_OK>();
+    savedImageDests->verificationNG = getParam<OperationParam::SAVE_DEST_VERIFICATION_NG>();
+    savedImageDests->readError = getParam<OperationParam::SAVE_DEST_READ_ERROR>();
+    savedImageDests->unstable = getParam<OperationParam::SAVE_DEST_UNSTABLE>();
+    savedImageDests->capture = getParam<OperationParam::SAVE_DEST_CAPTURE>();
+
+    // Set selected image types to SEND_BY_FTP
+    if (saveConfig.readOK)
+        setParam<OperationParam::SAVE_DEST_READ_OK>(ImageSavingDestination::SEND_BY_FTP);
+    if (saveConfig.verificationNG)
+        setParam<OperationParam::SAVE_DEST_VERIFICATION_NG>(ImageSavingDestination::SEND_BY_FTP);
+    if (saveConfig.readError)
+        setParam<OperationParam::SAVE_DEST_READ_ERROR>(ImageSavingDestination::SEND_BY_FTP);
+    if (saveConfig.unstable)
+        setParam<OperationParam::SAVE_DEST_UNSTABLE>(ImageSavingDestination::SEND_BY_FTP);
+    if (saveConfig.capture)
+        setParam<OperationParam::SAVE_DEST_CAPTURE>(ImageSavingDestination::SEND_BY_FTP);
 }
 
 void Scanner::stopImageServer() {
     if (imageServer) {
         imageServer->stop();
         imageServer.reset();
+    }
+
+    // Restore previous image saving destinations
+    if (savedImageDests) {
+        setParam<OperationParam::SAVE_DEST_READ_OK>(savedImageDests->readOK);
+        setParam<OperationParam::SAVE_DEST_VERIFICATION_NG>(savedImageDests->verificationNG);
+        setParam<OperationParam::SAVE_DEST_READ_ERROR>(savedImageDests->readError);
+        setParam<OperationParam::SAVE_DEST_UNSTABLE>(savedImageDests->unstable);
+        setParam<OperationParam::SAVE_DEST_CAPTURE>(savedImageDests->capture);
+        savedImageDests.reset();
     }
 }
 
