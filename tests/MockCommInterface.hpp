@@ -14,6 +14,7 @@ class MockCommInterface : public OpenSRX::ICommInterface {
     MockCommInterface() = default;
     ~MockCommInterface() override = default;
     MOCK_METHOD(std::string, sendCommand, (const std::string& command), (override));
+    MOCK_METHOD(std::string, sendCommandUnlocked, (const std::string& command), (override));
     MOCK_METHOD(std::string, describe, (), (const, override));
 
     void testStripEcho(const std::string& response, const std::string& command,

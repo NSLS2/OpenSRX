@@ -76,6 +76,7 @@ class ICommInterface {
 
     virtual ~ICommInterface() = default;
     virtual std::string sendCommand(const std::string& command) = 0;
+    virtual std::string sendCommandUnlocked(const std::string& command) = 0;
     virtual std::string describe() const = 0;
     void setCommFormat(CommFormat format);
     CommFormat getCommFormat() { return commFormat; }

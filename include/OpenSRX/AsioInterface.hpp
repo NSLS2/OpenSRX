@@ -25,6 +25,7 @@ class AsioInterface : public ICommInterface {
      * @return The parsed response string.
      */
     std::string sendCommand(const std::string& command) override;
+    std::string sendCommandUnlocked(const std::string& command) override;
 
    protected:
     asio::io_context ioContext;

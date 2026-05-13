@@ -1,5 +1,7 @@
 #include "TestScanner.hpp"
 
+namespace OpenSRX {
+
 // ─── Constructor tests ──────────────────────────────────────────────────────
 
 TEST_F(TestScanner, ConstructorParsesModelAndFirmware) {
@@ -8,10 +10,11 @@ TEST_F(TestScanner, ConstructorParsesModelAndFirmware) {
 }
 
 TEST(TestScannerStandalone, ConstructorThrowsOnInvalidVersionInfo) {
-    StrictMock<OpenSRX::MockCommInterface> mockComm;
+    StrictMock<MockCommInterface> mockComm;
     EXPECT_CALL(mockComm, describe()).WillRepeatedly(Return("mock://scanner"));
-    EXPECT_CALL(mockComm, sendCommand("KEYENCE")).WillOnce(Return("InvalidNoComma"));
-    EXPECT_THROW(OpenSRX::Scanner scanner(mockComm), std::runtime_error);
+    EXPECT_CALL(mockComm, sendCommand("KEYENCE"))
+        .WillOnce(Return("OK,KEYENCE,InvalidNoComma"));
+    EXPECT_THROW(Scanner scanner(mockComm), std::runtime_error);
 }
 
 // ─── Bank parameter (RB/WB) tests ──────────────────────────────────────────
@@ -339,13 +342,13 @@ TEST_F(TestScanner, SetCommParamInt) {
 // ─── parseVersionInfo tests ─────────────────────────────────────────────────
 
 TEST(TestParseVersionInfo, ParsesValidInput) {
-    auto [model, firmware] = OpenSRX::parseVersionInfo("SR-X100W,V2.0.0");
+    auto [model, firmware] = parseVersionInfo("SR-X100W,V2.0.0");
     EXPECT_EQ(model, "SR-X100W");
     EXPECT_EQ(firmware, "V2.0.0");
 }
 
 TEST(TestParseVersionInfo, ThrowsOnMissingComma) {
-    EXPECT_THROW(OpenSRX::parseVersionInfo("NoCommaHere"), std::runtime_error);
+    EXPECT_THROW(parseVersionInfo("NoCommaHere"), std::runtime_error);
 }
 
 // ─── Error response handling tests ──────────────────────────────────────────
@@ -463,3 +466,63 @@ TEST_F(TestScanner, GetCommParamThrowsOnError) {
     EXPECT_CALL(*pMockComm, sendCommand("RN,200")).WillOnce(Return("ER,RN,99"));
     EXPECT_THROW(pScanner->getParam<OpenSRX::CommParam::IP_ADDRESS>(), std::runtime_error);
 }
+
+// ─── checkResponse unit tests ───────────────────────────────────────────────
+
+TEST_F(TestScanner, CheckResponseExtractsValueFromOK) {
+    EXPECT_EQ(testCheckResponse("OK,RB,500"), "500");
+}
+
+TEST_F(TestScanner, CheckResponseReturnsEmptyForWriteOK) {
+    EXPECT_EQ(testCheckResponse("OK,WB"), "");
+}
+
+TEST_F(TestScanner, CheckResponseExtractsValueWithCommas) {
+    EXPECT_EQ(testCheckResponse("OK,RN,192.168.1.100"), "192.168.1.100");
+}
+
+TEST_F(TestScanner, CheckResponseThrowsInvalidArgumentOnErrCode0) {
+    EXPECT_THROW(testCheckResponse("ER,WB,0"), std::invalid_argument);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsInvalidArgumentOnErrCode1) {
+    EXPECT_THROW(testCheckResponse("ER,WB,1"), std::invalid_argument);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsOutOfRangeOnErrCode2) {
+    EXPECT_THROW(testCheckResponse("ER,RB,2"), std::out_of_range);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsOutOfRangeOnErrCode3) {
+    EXPECT_THROW(testCheckResponse("ER,WP,3"), std::out_of_range);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsInvalidArgumentOnErrCode4) {
+    EXPECT_THROW(testCheckResponse("ER,WB,4"), std::invalid_argument);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsOutOfRangeOnErrCode5) {
+    EXPECT_THROW(testCheckResponse("ER,WB,5"), std::out_of_range);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsRuntimeErrorOnErrCode20) {
+    EXPECT_THROW(testCheckResponse("ER,WC,20"), std::runtime_error);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsOverflowErrorOnErrCode21) {
+    EXPECT_THROW(testCheckResponse("ER,WN,21"), std::overflow_error);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsRuntimeErrorOnErrCode99) {
+    EXPECT_THROW(testCheckResponse("ER,RB,99"), std::runtime_error);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsRuntimeErrorOnUnknownErrCode) {
+    EXPECT_THROW(testCheckResponse("ER,WB,55"), std::runtime_error);
+}
+
+TEST_F(TestScanner, CheckResponseThrowsRuntimeErrorOnMalformedErrorNonNumeric) {
+    EXPECT_THROW(testCheckResponse("ER,WB,abc"), std::runtime_error);
+}
+
+}  // namespace OpenSRX

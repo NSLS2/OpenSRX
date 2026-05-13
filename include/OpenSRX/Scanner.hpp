@@ -11,6 +11,8 @@
 
 namespace OpenSRX {
 
+class TestScanner;
+
 enum class CommandStatus {
     NO_PROCESSING = 0,
     WAIT_FOR_SETTING = 1,
@@ -56,6 +58,9 @@ class Scanner {
    public:
     Scanner(ICommInterface& comm);
     ~Scanner() = default;
+
+    // Allow test fixture access to private methods
+    friend class TestScanner;
 
     std::string startReading();
     std::string startReading(int bank);

@@ -34,6 +34,26 @@ std::string AsioInterface<StreamT>::sendCommand(const std::string& command) {
     return result;
 }
 
+template <typename StreamT>
+std::string AsioInterface<StreamT>::sendCommandUnlocked(const std::string& command) {
+    std::string fullCommand = addHeaderAndTerminator(command);
+    asio::write(stream, asio::buffer(fullCommand));
+
+    asio::streambuf response;
+    asio::read_until(stream, response, inTermStr);
+
+    std::string result{asio::buffers_begin(response.data()), asio::buffers_end(response.data())};
+
+    auto pos = result.find(inTermStr);
+    if (pos != std::string::npos) result.erase(pos);
+
+    if (commFormat == CommFormat::STX_HEADER_ETX_IN_ETX_OUT && !result.empty() &&
+        result[0] == '\x02')
+        result.erase(0, 1);
+
+    return result;
+}
+
 // Explicit instantiations for the two supported stream types.
 template class AsioInterface<asio::ip::tcp::socket>;
 template class AsioInterface<asio::serial_port>;

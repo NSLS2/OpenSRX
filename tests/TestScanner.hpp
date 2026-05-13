@@ -10,18 +10,28 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::StrictMock;
 
+namespace OpenSRX {
+
 class TestScanner : public ::testing::Test {
    protected:
     void SetUp() override {
-        pMockComm = std::make_unique<StrictMock<OpenSRX::MockCommInterface>>();
-        // Scanner constructor calls describe() and sends "KEYENCE" command
+        pMockComm = std::make_unique<StrictMock<MockCommInterface>>();
+        // Scanner constructor calls describe(), KEYENCE, and EMAC
         EXPECT_CALL(*pMockComm, describe()).WillRepeatedly(Return("mock://scanner"));
         EXPECT_CALL(*pMockComm, sendCommand("KEYENCE"))
-            .WillOnce(Return("SR-X300,V1.2.3"));
-        pScanner = std::make_unique<OpenSRX::Scanner>(*pMockComm);
+            .WillOnce(Return("OK,KEYENCE,SR-X300,V1.2.3"));
+        EXPECT_CALL(*pMockComm, sendCommand("EMAC"))
+            .WillOnce(Return("OK,EMAC,001122334455"));
+        pScanner = std::make_unique<Scanner>(*pMockComm);
     }
     void TearDown() override {}
 
-    std::unique_ptr<StrictMock<OpenSRX::MockCommInterface>> pMockComm;
-    std::unique_ptr<OpenSRX::Scanner> pScanner;
+    std::string testCheckResponse(const std::string& response) {
+        return pScanner->checkResponse(response);
+    }
+
+    std::unique_ptr<StrictMock<MockCommInterface>> pMockComm;
+    std::unique_ptr<Scanner> pScanner;
 };
+
+}  // namespace OpenSRX

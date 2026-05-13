@@ -3,7 +3,6 @@
 namespace OpenSRX {
 
 std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw) {
-    // The response to the "KEYENCE" command is expected to be in the format "Model,FirmwareVersion"
     auto commaPos = raw.find(',');
     if (commaPos == std::string::npos)
         throw std::runtime_error("Unexpected version info format: " + raw);
@@ -13,14 +12,245 @@ std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw) {
     return {model, firmwareVersion};
 }
 
+static std::string formatBank(int bank) {
+    std::ostringstream ss;
+    ss << std::setw(2) << std::setfill('0') << bank;
+    return ss.str();
+}
+
 Scanner::Scanner(ICommInterface& comm) : comm(comm) {
     spdlog::info("Connecting to scanner at {}", comm.describe());
     spdlog::info("Obtaining version information...");
-    std::string raw = comm.sendCommand("KEYENCE");
+    std::string raw = checkResponse(comm.sendCommand("KEYENCE"));
     auto [model, firmware] = parseVersionInfo(raw);
     this->model = model;
     this->firmwareVersion = firmware;
     spdlog::info("Connected to scanner, model: {}, firmware version: {}", model, firmware);
+    this->macAddress = checkResponse(comm.sendCommand("EMAC"));
+}
+
+// ─── Reading and tuning ─────────────────────────────────────────────────────
+
+std::string Scanner::startReading() {
+    return comm.sendCommandUnlocked("LON");
+}
+
+std::string Scanner::startReading(int bank) {
+    return comm.sendCommandUnlocked("LON," + formatBank(bank));
+}
+
+void Scanner::stopReading() {
+    comm.sendCommandUnlocked("LOFF");
+}
+
+void Scanner::startQuickSetupCodeReading() {
+    checkResponse(comm.sendCommand("RCON"));
+}
+
+void Scanner::finishQuickSetupCodeReading() {
+    checkResponse(comm.sendCommand("RCOFF"));
+}
+
+std::string Scanner::checkQuickSetupCodeResult() {
+    return checkResponse(comm.sendCommand("RCCHK"));
+}
+
+void Scanner::readingRateTest() {
+    checkResponse(comm.sendCommandUnlocked("TEST1"));
+}
+
+void Scanner::readingRateTest(int bank) {
+    checkResponse(comm.sendCommandUnlocked("TEST1," + formatBank(bank)));
+}
+
+void Scanner::readTimeTest() {
+    checkResponse(comm.sendCommandUnlocked("TEST2"));
+}
+
+void Scanner::readTimeTest(int bank) {
+    checkResponse(comm.sendCommandUnlocked("TEST2," + formatBank(bank)));
+}
+
+void Scanner::quitTestMode() {
+    checkResponse(comm.sendCommandUnlocked("QUIT"));
+}
+
+// ─── I/O terminal control ───────────────────────────────────────────────────
+
+bool Scanner::getInputTerminalState(int terminalNumber) {
+    std::string val =
+        checkResponse(comm.sendCommand("INCHK," + std::to_string(terminalNumber)));
+    return val == "ON";
+}
+
+void Scanner::turnOnOutputTerminal(int terminalNumber) {
+    checkResponse(comm.sendCommand("OUTON," + std::to_string(terminalNumber)));
+}
+
+void Scanner::turnOffOutputTerminal(int terminalNumber) {
+    checkResponse(comm.sendCommand("OUTOFF," + std::to_string(terminalNumber)));
+}
+
+void Scanner::turnOnAllOutputTerminals() {
+    checkResponse(comm.sendCommand("ALLON"));
+}
+
+void Scanner::turnOffAllOutputTerminals() {
+    checkResponse(comm.sendCommand("ALLOFF"));
+}
+
+// ─── Reset and buffer ────────────────────────────────────────────────────────
+
+void Scanner::reset() {
+    checkResponse(comm.sendCommand("RESET"));
+}
+
+void Scanner::clearSendBuffer() {
+    checkResponse(comm.sendCommand("BCLR"));
+}
+
+// ─── Image and focus ─────────────────────────────────────────────────────────
+
+std::string Scanner::captureImage(int bank) {
+    return checkResponse(comm.sendCommand("SHOT," + formatBank(bank)));
+}
+
+void Scanner::adjustFocus() {
+    checkResponse(comm.sendCommandUnlocked("FTUNE"));
+}
+
+std::tuple<bool, TuningAdvice, TuningFailureReason> Scanner::startTuning(int bank) {
+    std::string result = comm.sendCommandUnlocked("TUNE," + formatBank(bank));
+    // Response format:
+    //   Success: "Tuning SUCCEEDED,<time>ms,00000<advice>00"
+    //   Failure: "Tuning FAILED,<time>ms,00000<advice>0<reason>"
+    bool succeeded = result.find("SUCCEEDED") != std::string::npos;
+
+    auto lastComma = result.rfind(',');
+    if (lastComma == std::string::npos)
+        throw std::runtime_error("Unexpected tuning response format: " + result);
+
+    std::string statusField = result.substr(lastComma + 1);
+    if (statusField.size() < 8)
+        throw std::runtime_error("Unexpected tuning status field: " + statusField);
+
+    int advice = statusField[5] - '0';
+    int reason = statusField[7] - '0';
+
+    return {succeeded, static_cast<TuningAdvice>(advice),
+            static_cast<TuningFailureReason>(reason)};
+}
+
+void Scanner::stopTuning() {
+    checkResponse(comm.sendCommandUnlocked("TQUIT"));
+}
+
+// ─── Pointer control ─────────────────────────────────────────────────────────
+
+void Scanner::enablePointer() {
+    checkResponse(comm.sendCommand("AMON"));
+}
+
+void Scanner::disablePointer() {
+    checkResponse(comm.sendCommand("AMOFF"));
+}
+
+// ─── Time settings ───────────────────────────────────────────────────────────
+
+void Scanner::setTime(const Timestamp& timestamp) {
+    std::ostringstream cmd;
+    cmd << "TMSET,"
+        << std::setw(4) << std::setfill('0') << timestamp.year
+        << std::setw(2) << std::setfill('0') << timestamp.month
+        << std::setw(2) << std::setfill('0') << timestamp.day
+        << std::setw(2) << std::setfill('0') << timestamp.hour
+        << std::setw(2) << std::setfill('0') << timestamp.minute
+        << std::setw(2) << std::setfill('0') << timestamp.second;
+    checkResponse(comm.sendCommand(cmd.str()));
+}
+
+Timestamp Scanner::getTime() {
+    std::string t = checkResponse(comm.sendCommand("TMGET"));
+    // Format: YYYYMMDDhhmmss (14 characters)
+    int year   = std::stoi(t.substr(0, 4));
+    int month  = std::stoi(t.substr(4, 2));
+    int day    = std::stoi(t.substr(6, 2));
+    int hour   = std::stoi(t.substr(8, 2));
+    int minute = std::stoi(t.substr(10, 2));
+    int second = std::stoi(t.substr(12, 2));
+    return Timestamp(second, minute, hour, day, month, year);
+}
+
+// ─── Status queries ──────────────────────────────────────────────────────────
+
+CommandStatus Scanner::getCommandStatus() {
+    std::string val = checkResponse(comm.sendCommand("CMDSTAT"));
+    if (val == "none")   return CommandStatus::NO_PROCESSING;
+    if (val == "wait")   return CommandStatus::WAIT_FOR_SETTING;
+    if (val == "update") return CommandStatus::UPDATING;
+    throw std::runtime_error("Unknown command status: " + val);
+}
+
+ErrorStatus Scanner::getErrorStatus() {
+    std::string val = checkResponse(comm.sendCommand("ERRSTAT"));
+    if (val == "none")        return ErrorStatus::NO_ERROR;
+    if (val == "system")      return ErrorStatus::SYSTEM_ERROR;
+    if (val == "update")      return ErrorStatus::UPDATE_ERROR;
+    if (val == "cfg")         return ErrorStatus::SET_VALUE_ERROR;
+    if (val == "ip")          return ErrorStatus::DUPLICATE_IP_ERROR;
+    if (val == "over")        return ErrorStatus::BUFF_OVERFLOW_ERROR;
+    if (val == "plc")         return ErrorStatus::PLC_LINK_ERROR;
+    if (val == "profinet")    return ErrorStatus::PROFINET_ERROR;
+    if (val == "lua")         return ErrorStatus::LUA_SCRIPT_ERROR;
+    if (val == "hostconnect") return ErrorStatus::CONNECTION_ERROR;
+    throw std::runtime_error("Unknown error status: " + val);
+}
+
+BusyStatus Scanner::getBusyStatus() {
+    std::string val = checkResponse(comm.sendCommand("BUSYSTAT"));
+    if (val == "none")   return BusyStatus::IDLE;
+    if (val == "trg")    return BusyStatus::TRG_BUSY;
+    if (val == "update") return BusyStatus::UPDATE_PROCESSING;
+    if (val == "file")   return BusyStatus::SAVING_FILE;
+    if (val == "af")     return BusyStatus::AUTO_FOCUSING;
+    throw std::runtime_error("Unknown busy status: " + val);
+}
+
+// ─── Settings management ─────────────────────────────────────────────────────
+
+void Scanner::copyBankConfiguration(int sourceBank, int targetBank) {
+    checkResponse(
+        comm.sendCommand("BCOPY," + formatBank(sourceBank) + "," + formatBank(targetBank)));
+}
+
+void Scanner::saveSettings() {
+    checkResponse(comm.sendCommand("SAVE"));
+}
+
+void Scanner::loadSavedSettings() {
+    checkResponse(comm.sendCommand("LOAD"));
+}
+
+void Scanner::resetToFactorySettings() {
+    checkResponse(comm.sendCommand("DFLT"));
+}
+
+void Scanner::saveBackupSettings(int backupNumber) {
+    checkResponse(comm.sendCommand("BSAVE," + std::to_string(backupNumber)));
+}
+
+void Scanner::loadBackupSettings(int backupNumber) {
+    checkResponse(comm.sendCommand("BLOAD," + std::to_string(backupNumber)));
+}
+
+// ─── Error clearing ──────────────────────────────────────────────────────────
+
+void Scanner::clearFTPCommsError() {
+    checkResponse(comm.sendCommand("HCLR"));
+}
+
+void Scanner::clearPLCLinkError() {
+    checkResponse(comm.sendCommand("PCLR"));
 }
 
 std::string Scanner::checkResponse(const std::string& response) {
