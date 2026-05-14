@@ -1,0 +1,51 @@
+---
+
+name: Build and Publish RPM on Release
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-rpm:
+    name: EL${{ matrix.el_version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        el_version: [9, 10]
+    container:
+      image: almalinux:${{ matrix.el_version }}
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y 'dnf-command(config-manager)'
+          dnf config-manager --set-enabled crb
+          dnf install -y epel-release
+          dnf install -y cmake gcc-c++ make rpm-build gh
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build SRPM
+        run: ./scripts/build-srpm.sh
+
+      - name: Build RPM
+        run: ./scripts/build-rpm.sh
+
+      - name: Upload RPM to release
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} *.rpm --clobber
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload SRPM to release
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} *.src.rpm --clobber
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,10 +7,12 @@ version = "0.1.0"
 
 [tasks]
 lint = "pre-commit run --all-files"
-tests = "./build/tests/TestOpenSRX"
-simulator = "./scripts/simulator.py"
 build = "mkdir -p build && cmake -B build -G Ninja -S . && ninja -C build"
+tests = "./build/tests/TestOpenSRX"
 build-docs = "cd docs && doxygen Doxyfile"
+make-rpm = "./scripts/build-rpm.sh"
+make-srpm = "./scripts/build-srpm.sh"
+simulator = "./scripts/simulator.py"
 
 [dependencies]
 pre-commit = ">=4.5.1,<5"
