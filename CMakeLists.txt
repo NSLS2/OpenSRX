@@ -32,7 +32,7 @@ FetchContent_Declare(
 
 FetchContent_Declare(
     fineftp
-    URL https://github.com/eclipse-ecal/fineftp-server/archive/refs/tags/v1.3.4.tar.gz
+    URL https://github.com/eclipse-ecal/fineftp-server/archive/refs/tags/v1.6.0.tar.gz
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
