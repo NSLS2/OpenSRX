@@ -48,7 +48,12 @@ FetchContent_MakeAvailable(spdlog)
 
 # Set asio_INCLUDE_DIR so fineftp's Findasio.cmake finds our already-fetched Asio headers.
 set(asio_INCLUDE_DIR "${asio_SOURCE_DIR}/asio/include" CACHE PATH "" FORCE)
-FetchContent_MakeAvailable(fineftp)
+set(FINEFTP_SERVER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_GetProperties(fineftp)
+if(NOT fineftp_POPULATED)
+    FetchContent_Populate(fineftp)
+    add_subdirectory(${fineftp_SOURCE_DIR} ${fineftp_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 
 add_library(asio_headers INTERFACE)
 add_library(asio::asio ALIAS asio_headers)
