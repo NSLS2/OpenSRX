@@ -13,11 +13,10 @@ jobs:
   build:
     name: Build and Package
     runs-on: ubuntu-latest
-    container: almalinux:9
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y cmake make gcc g++ tar gzip
+          apt install -y cmake make gcc g++ tar gzip
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -41,5 +40,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ github.event.release.tag_name }}
         run: |
-          dnf install -y gh
           gh release upload "${VERSION}" "OpenSRX-${VERSION}-linux-x64.tar.gz" --repo "${{ github.repository }}"
