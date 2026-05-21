@@ -19,14 +19,13 @@ jobs:
         el_version: [9, 10]
     container:
       image: almalinux:${{ matrix.el_version }}
+      options: --user root
     steps:
       - name: Install dependencies
         run: |
           dnf install -y 'dnf-command(config-manager)'
           dnf config-manager --set-enabled crb
           dnf install -y epel-release
-          dnf install -y dnf5-plugins
-          dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
           dnf install -y cmake gcc-c++ make rpm-build gh
 
       - name: Checkout code

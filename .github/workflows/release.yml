@@ -13,10 +13,12 @@ jobs:
   build:
     name: Build and Package
     runs-on: ubuntu-latest
+    container:
+      image: almalinux:latest
     steps:
       - name: Install dependencies
         run: |
-          apt install -y cmake make gcc g++ tar gzip
+          dnf install -y cmake make gcc g++ tar gzip
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -37,6 +39,7 @@ jobs:
 
       - name: Upload release artifact
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ github.event.release.tag_name }}
         run: |
