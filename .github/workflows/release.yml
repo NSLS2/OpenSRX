@@ -18,7 +18,10 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y cmake make gcc g++ tar gzip
+          dnf install -y 'dnf-command(config-manager)'
+          dnf config-manager --set-enabled crb
+          dnf install -y epel-release
+          dnf install -y cmake make gcc-c++ tar gzip gh
 
       - name: Checkout code
         uses: actions/checkout@v6

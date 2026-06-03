@@ -8,7 +8,7 @@ Summary:        C++ library for interfacing with Keyence SR-X barcode readers
 
 License:        BSD-3-Clause
 URL:            https://github.com/jwlodek/OpenSRX
-Source0:        https://github.com/jwlodek/OpenSRX/archive/refs/tags/%{version}.tar.gz
+Source0:        https://github.com/jwlodek/OpenSRX/archive/refs/tags/v%{version}.tar.gz
 
 BuildRequires:  cmake >= 3.16
 BuildRequires:  cmake-rpm-macros
@@ -31,25 +31,23 @@ This package contains the header files and unversioned shared library symlink
 needed for developing applications that use %{name}.
 
 %prep
-%autosetup
+%autosetup -n %{name}-%{version}
 
 %build
-%cmake -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+%cmake -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_LIBDIR=%{_libdir}
 %cmake_build
 
 %install
 %cmake_install
 
 %files
-%license LICENSE
 %{_libdir}/libOpenSRX.so.%{version}
 %{_libdir}/libOpenSRX.so.0
 
 %files devel
-%license LICENSE
 %{_libdir}/libOpenSRX.so
 %{_includedir}/OpenSRX/*
 
 %changelog
-* Tue May 13 2026 Wlodek, Jakub <jwlodek@bnl.gov> - 0.1.0-1
+* Wed May 13 2026 Wlodek, Jakub <jwlodek@bnl.gov> - 0.1.0-1
 - Initial RPM release of the OpenSRX library.

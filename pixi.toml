@@ -12,6 +12,7 @@ tests = "./build/tests/TestOpenSRX"
 build-docs = "cd docs && doxygen Doxyfile"
 make-rpm = "./scripts/build-rpm.sh"
 make-srpm = "./scripts/build-srpm.sh"
+clean-rpm = "rm -rf BUILD BUILDROOT RPMS SRPMS SOURCES"
 simulator = "./scripts/simulator.py"
 
 [dependencies]
