@@ -3,6 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "OpenSRX/WireTransport.hpp"
 #include "OpenSRX/ICommInterface.hpp"
 
 // Put it in the OpenSRX namespace so we don't need to have the

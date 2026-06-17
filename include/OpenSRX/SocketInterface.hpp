@@ -3,7 +3,7 @@
 #include <memory>
 #include <thread>
 
-#include "OpenSRX/AsioInterface.hpp"
+#include "OpenSRX/ICommInterface.hpp"
 
 namespace OpenSRX {
 
@@ -14,7 +14,7 @@ struct SocketInterfaceImpl;
  *
  * Connects to the scanner's Ethernet command port via Asio TCP socket.
  */
-class SocketInterface : public AsioInterface<asio::ip::tcp::socket> {
+class SocketInterface : public ICommInterface {
    public:
     /**
      * @brief Open a TCP socket connection to the scanner.

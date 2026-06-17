@@ -1,16 +1,18 @@
 #pragma once
 
-#include <asio.hpp>
+#include <memory>
 
-#include "OpenSRX/AsioInterface.hpp"
+#include "OpenSRX/ICommInterface.hpp"
 
 namespace OpenSRX {
 
+struct SerialInterfaceImpl;
+
 /// Serial port parity setting.
 enum class Parity {
-    NONE = asio::serial_port_base::parity::none,  ///< No parity.
-    EVEN = asio::serial_port_base::parity::even,  ///< Even parity.
-    ODD = asio::serial_port_base::parity::odd,    ///< Odd parity.
+    NONE = 0,  ///< No parity.
+    EVEN = 1,  ///< Even parity.
+    ODD = 2,   ///< Odd parity.
 };
 
 /// Serial port data bits setting.
@@ -21,16 +23,15 @@ enum class DataBits {
 
 /// Serial port stop bits setting.
 enum class StopBits {
-    ONE = asio::serial_port_base::stop_bits::one,  ///< 1 stop bit.
-    TWO = asio::serial_port_base::stop_bits::two,  ///< 2 stop bits.
+    ONE = 1,  ///< 1 stop bit.
+    TWO = 2,  ///< 2 stop bits.
 };
 
 /// Serial port flow control setting.
 enum class FlowControl {
-    NONE = asio::serial_port_base::flow_control::none,         ///< No flow control.
-    RTS_CTS = asio::serial_port_base::flow_control::hardware,  ///< Hardware (RTS/CTS) flow control.
-    XON_XOFF =
-        asio::serial_port_base::flow_control::software,  ///< Software (XON/XOFF) flow control.
+    NONE = 0,      ///< No flow control.
+    RTS_CTS = 1,   ///< Hardware (RTS/CTS) flow control.
+    XON_XOFF = 2,  ///< Software (XON/XOFF) flow control.
 };
 
 /**
@@ -39,7 +40,7 @@ enum class FlowControl {
  * Wraps an Asio serial_port with configurable baud rate, data bits,
  * parity, stop bits, and flow control.
  */
-class SerialInterface : public AsioInterface<asio::serial_port> {
+class SerialInterface : public ICommInterface {
    public:
     /**
      * @brief Open a serial port connection.
@@ -61,6 +62,7 @@ class SerialInterface : public AsioInterface<asio::serial_port> {
 
    private:
     std::string port;  ///< Serial device path.
+    std::unique_ptr<SerialInterfaceImpl> impl;
 };
 
 };  // namespace OpenSRX
