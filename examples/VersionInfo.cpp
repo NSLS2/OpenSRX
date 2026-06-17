@@ -1,7 +1,8 @@
+#include <spdlog/spdlog.h>
+
 #include <argparse/argparse.hpp>
 #include <iostream>
 #include <memory>
-#include <spdlog/spdlog.h>
 
 #include "OpenSRX/OpenSRX.hpp"
 #include "OpenSRX/Scanner.hpp"

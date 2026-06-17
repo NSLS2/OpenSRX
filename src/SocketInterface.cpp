@@ -1,8 +1,9 @@
 #include "OpenSRX/SocketInterface.hpp"
 
-#include <asio.hpp>
 #include <fineftp/server.h>
 #include <spdlog/spdlog.h>
+
+#include <asio.hpp>
 
 #include "OpenSRX/WireTransport.hpp"
 
@@ -14,7 +15,8 @@ class SocketWireTransport : public detail::AsioWireTransport<asio::ip::tcp::sock
 
     void connectTo(const std::string& ip, int port) {
         asio::ip::tcp::resolver resolver(ioContext);
-        asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(ip, std::to_string(port));
+        asio::ip::tcp::resolver::results_type endpoints =
+            resolver.resolve(ip, std::to_string(port));
         asio::connect(stream, endpoints);
     }
 

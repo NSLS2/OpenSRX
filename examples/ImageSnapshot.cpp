@@ -12,11 +12,12 @@
  *   ImageSnapshot --serial /dev/ttyUSB0 --local-ip 192.168.100.50
  */
 
+#include <spdlog/spdlog.h>
+
 #include <argparse/argparse.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <spdlog/spdlog.h>
 
 #include "OpenSRX/OpenSRX.hpp"
 

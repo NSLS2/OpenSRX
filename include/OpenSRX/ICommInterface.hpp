@@ -89,7 +89,7 @@ class ICommInterface {
      */
     CommFormat getCommFormat() { return commFormat; }
 
-    protected:
+   protected:
     /// The underlying communication channel for raw byte I/O.
     std::unique_ptr<detail::IWireTransport> wire;
 

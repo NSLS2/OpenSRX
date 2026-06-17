@@ -1,7 +1,8 @@
 #include "OpenSRX/SerialInterface.hpp"
 
-#include <asio.hpp>
 #include <spdlog/spdlog.h>
+
+#include <asio.hpp>
 
 #include "OpenSRX/WireTransport.hpp"
 
@@ -71,8 +72,7 @@ struct SerialInterfaceImpl {
 
 SerialInterface::SerialInterface(std::string port, int baudRate, DataBits dataBits, Parity parity,
                                  StopBits stopBits, FlowControl flowControl)
-        : port(std::move(port)),
-      impl(std::make_unique<SerialInterfaceImpl>()) {
+    : port(std::move(port)), impl(std::make_unique<SerialInterfaceImpl>()) {
     auto transport = std::make_unique<SerialWireTransport>(this->port);
     impl->wirePtr = transport.get();
     wire = std::move(transport);
