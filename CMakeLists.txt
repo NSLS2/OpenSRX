@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(OpenSRX
-    VERSION 0.1.0
+    VERSION 0.1.2
     DESCRIPTION "C++ library for interfacing with Keyence SR series barcode readers"
     LANGUAGES CXX
 )
@@ -53,7 +53,11 @@ set(FINEFTP_SERVER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_GetProperties(fineftp)
 if(NOT fineftp_POPULATED)
     FetchContent_Populate(fineftp)
+    # Build fineftp as static so it's linked into libOpenSRX.so
+    set(_saved_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(${fineftp_SOURCE_DIR} ${fineftp_BINARY_DIR} EXCLUDE_FROM_ALL)
+    set(BUILD_SHARED_LIBS ${_saved_BUILD_SHARED_LIBS})
 endif()
 
 add_library(asio_headers INTERFACE)

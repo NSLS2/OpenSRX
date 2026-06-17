@@ -1,9 +1,16 @@
 #include "OpenSRX/SocketInterface.hpp"
 
+#include <fineftp/server.h>
+#include <spdlog/spdlog.h>
+
 namespace OpenSRX {
 
+struct SocketInterfaceImpl {
+    std::unique_ptr<fineftp::FtpServer> ftpServer;
+};
+
 SocketInterface::SocketInterface(const std::string& ip, int port)
-    : AsioInterface(ioContext), ip(ip), port(port) {
+    : AsioInterface(ioContext), ip(ip), port(port), impl(std::make_unique<SocketInterfaceImpl>()) {
     spdlog::debug("Initializing socket connection to {}...", describe());
     asio::ip::tcp::resolver resolver(ioContext);
     asio::ip::tcp::resolver::results_type endpoints =
@@ -15,10 +22,10 @@ SocketInterface::SocketInterface(const std::string& ip, int port)
 SocketInterface::~SocketInterface() {
     spdlog::debug("Closing socket connection to {}...", describe());
     stream.close();
-    if (pFtpServer != nullptr && pFtpServer->getOpenConnectionCount() > 0) {
+    if (impl->ftpServer != nullptr && impl->ftpServer->getOpenConnectionCount() > 0) {
         spdlog::debug("Stopping FTP server with {} open connections...",
-                      pFtpServer->getOpenConnectionCount());
-        pFtpServer->stop();
+                      impl->ftpServer->getOpenConnectionCount());
+        impl->ftpServer->stop();
         spdlog::debug("FTP server stopped.");
     }
     spdlog::debug("Socket connection to {} closed.", describe());
@@ -28,9 +35,9 @@ void SocketInterface::startFtpServer(const std::string& address, int port,
                                      const std::string& mountPoint, int threadPoolSize) {
     spdlog::debug("Starting FTP server on {}:{} with mount point '{}'...", address, port,
                   mountPoint);
-    pFtpServer = std::make_unique<fineftp::FtpServer>(address, port);
-    pFtpServer->addUserAnonymous(mountPoint, fineftp::Permission::All);
-    pFtpServer->start(threadPoolSize);
+    impl->ftpServer = std::make_unique<fineftp::FtpServer>(address, port);
+    impl->ftpServer->addUserAnonymous(mountPoint, fineftp::Permission::All);
+    impl->ftpServer->start(threadPoolSize);
     spdlog::debug("FTP server started on {}:{}.", address, port);
 }
 

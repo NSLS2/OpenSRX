@@ -13,6 +13,7 @@
 #include <argparse/argparse.hpp>
 #include <iostream>
 #include <memory>
+#include <spdlog/spdlog.h>
 
 #include "OpenSRX/OpenSRX.hpp"
 

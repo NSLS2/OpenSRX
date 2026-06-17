@@ -1,6 +1,8 @@
 
 #include "OpenSRX/SerialInterface.hpp"
 
+#include <spdlog/spdlog.h>
+
 namespace OpenSRX {
 
 SerialInterface::SerialInterface(std::string port, int baudRate, DataBits dataBits, Parity parity,

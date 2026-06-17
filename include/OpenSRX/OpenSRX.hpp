@@ -9,8 +9,6 @@
  * and version information.
  */
 
-#include <spdlog/spdlog.h>
-
 #include <string>
 #include <tuple>
 
