@@ -50,6 +50,7 @@ needed for developing applications that use %{name}.
 
 %changelog
 * Wed Jun 17 2026 Wlodek, Jakub <jwlodek.dev@gmail.com> - 0.1.2-1
+- Refactor inheritance for communication interface classes, to be able to avoid leaking asio headers in the public API.
 - Refactor logging code to avoid leaking spdlog/fineftp headers as dependency in public API.
 
 * Wed May 13 2026 Wlodek, Jakub <jwlodek.dev@gmail.com> - 0.1.1-1
