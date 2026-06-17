@@ -1,13 +1,15 @@
 #pragma once
-#include <spdlog/spdlog.h>
 
-#include <asio.hpp>
+#include <memory>
 #include <mutex>
 #include <string>
 
 class MockCommInterface;
 
 namespace OpenSRX {
+namespace detail {
+class IWireTransport;
+}  // namespace detail
 
 /// Error codes returned by the scanner in "ER,CMD,code" responses.
 enum class ErrCode {
@@ -44,12 +46,9 @@ enum class CommFormat {
  */
 class ICommInterface {
    public:
-    template <typename StreamT>
-    friend class AsioInterface;
-
     friend class MockCommInterface;
 
-    virtual ~ICommInterface() = default;
+    virtual ~ICommInterface();
 
     /**
      * @brief Send a command and return the response (thread-safe).
@@ -59,7 +58,7 @@ class ICommInterface {
      * @param command The command string (without header/terminator).
      * @return The parsed response string.
      */
-    virtual std::string sendCommand(const std::string& command) = 0;
+    virtual std::string sendCommand(const std::string& command);
 
     /**
      * @brief Send a command and return the response without locking.
@@ -70,7 +69,7 @@ class ICommInterface {
      * @param command The command string (without header/terminator).
      * @return The parsed response string.
      */
-    virtual std::string sendCommandUnlocked(const std::string& command) = 0;
+    virtual std::string sendCommandUnlocked(const std::string& command);
 
     /**
      * @brief Return a human-readable description of this interface.
@@ -90,7 +89,10 @@ class ICommInterface {
      */
     CommFormat getCommFormat() { return commFormat; }
 
-   private:
+   protected:
+    /// The underlying communication channel for raw byte I/O.
+    std::unique_ptr<detail::IWireTransport> wire;
+
     /**
      * @brief Strip a command echo from the start of a response.
      * @param response The raw response string.
@@ -109,8 +111,7 @@ class ICommInterface {
     CommFormat commFormat = CommFormat::NO_HEADER_CR_IN_CR_OUT;  ///< Active framing format.
     std::string inTermStr = "\r";  ///< Expected response terminator string.
 
-   protected:
-    /// Mutex to ensure thread-safe access to the communixcation interface.
+    /// Mutex to ensure thread-safe access to the communication interface.
     std::mutex commMutex;
 };
 }  // namespace OpenSRX

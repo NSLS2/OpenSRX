@@ -1,17 +1,20 @@
 #pragma once
 
-#include <fineftp/server.h>
-
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "OpenSRX/Image.hpp"
+
+namespace fineftp {
+class FtpServer;
+}
 
 namespace OpenSRX {
 

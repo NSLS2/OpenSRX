@@ -1,6 +1,32 @@
 #include "OpenSRX/ICommInterface.hpp"
 
+#include "OpenSRX/WireTransport.hpp"
+
 namespace OpenSRX {
+
+ICommInterface::~ICommInterface() = default;
+
+std::string ICommInterface::sendCommand(const std::string& command) {
+    std::scoped_lock lock(commMutex);
+    return sendCommandUnlocked(command);
+}
+
+std::string ICommInterface::sendCommandUnlocked(const std::string& command) {
+    const std::string fullCommand = addHeaderAndTerminator(command);
+    wire->write(fullCommand);
+
+    std::string result = wire->readUntil(inTermStr);
+
+    auto pos = result.find(inTermStr);
+    if (pos != std::string::npos) result.erase(pos);
+
+    if (commFormat == CommFormat::STX_HEADER_ETX_IN_ETX_OUT && !result.empty() &&
+        result[0] == '\x02') {
+        result.erase(0, 1);
+    }
+
+    return result;
+}
 
 /**
  * @brief Adds an appropriate header and terminator to a command

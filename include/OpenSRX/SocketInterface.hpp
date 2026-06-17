@@ -1,20 +1,20 @@
 #pragma once
 
-#include <fineftp/fineftp_version.h>
-#include <fineftp/server.h>
-
+#include <memory>
 #include <thread>
 
-#include "OpenSRX/AsioInterface.hpp"
+#include "OpenSRX/ICommInterface.hpp"
 
 namespace OpenSRX {
+
+struct SocketInterfaceImpl;
 
 /**
  * @brief Communication interface using a TCP/IP socket.
  *
  * Connects to the scanner's Ethernet command port via Asio TCP socket.
  */
-class SocketInterface : public AsioInterface<asio::ip::tcp::socket> {
+class SocketInterface : public ICommInterface {
    public:
     /**
      * @brief Open a TCP socket connection to the scanner.
@@ -43,8 +43,8 @@ class SocketInterface : public AsioInterface<asio::ip::tcp::socket> {
     std::string ip;  ///< Scanner IP address.
     int port;        ///< Scanner command port.
 
-    /// FTP server instance (heap-allocated because FtpServer is non-copyable).
-    std::unique_ptr<fineftp::FtpServer> pFtpServer = nullptr;
+    /// Private implementation holding optional FTP server state.
+    std::unique_ptr<SocketInterfaceImpl> impl;
 };
 
 }  // namespace OpenSRX

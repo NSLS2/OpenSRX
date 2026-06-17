@@ -1,5 +1,7 @@
 #include "OpenSRX/Scanner.hpp"
 
+#include <spdlog/spdlog.h>
+
 #include <sstream>
 #include <vector>
 

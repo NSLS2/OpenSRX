@@ -5,7 +5,6 @@ else()
 endif()
 
 add_library(OpenSRX ${OPENSRX_LIBRARY_TYPE}
-    AsioInterface.cpp
     Image.cpp
     ImageServer.cpp
     ParamTraits.cpp
@@ -45,6 +44,7 @@ install(TARGETS OpenSRX
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/OpenSRX
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PATTERN "WireTransport.hpp" EXCLUDE
 )
 
 install(DIRECTORY ${OPENSRX_GENERATED_INCLUDE_DIR}/OpenSRX

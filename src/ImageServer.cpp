@@ -1,5 +1,6 @@
 #include "OpenSRX/ImageServer.hpp"
 
+#include <fineftp/server.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>

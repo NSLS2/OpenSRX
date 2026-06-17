@@ -2,7 +2,7 @@
 %global debug_package %{nil}
 
 Name:           OpenSRX
-Version:        0.1.0
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        C++ library for interfacing with Keyence SR-X barcode readers
 
@@ -49,5 +49,12 @@ needed for developing applications that use %{name}.
 %{_includedir}/OpenSRX/*
 
 %changelog
-* Wed May 13 2026 Wlodek, Jakub <jwlodek@bnl.gov> - 0.1.0-1
+* Wed Jun 17 2026 Wlodek, Jakub <jwlodek.dev@gmail.com> - 0.1.2-1
+- Refactor inheritance for communication interface classes, to be able to avoid leaking asio headers in the public API.
+- Refactor logging code to avoid leaking spdlog/fineftp headers as dependency in public API.
+
+* Wed May 13 2026 Wlodek, Jakub <jwlodek.dev@gmail.com> - 0.1.1-1
+- Always build fineftp dependency as a static library.
+
+* Wed May 13 2026 Wlodek, Jakub <jwlodek.dev@gmail.com> - 0.1.0-1
 - Initial RPM release of the OpenSRX library.

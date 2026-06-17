@@ -23,8 +23,8 @@ class PrintRequestsAndReturnsOnFailure : public ::testing::EmptyTestEventListene
 };
 
 TEST(TestOpenSRX, TestExposesVersionProgrammatically) {
-    EXPECT_EQ(OpenSRX::GetVersion<std::string>(), "0.1.0");
-    EXPECT_EQ(OpenSRX::GetVersion<OpenSRX::VersionTuple>(), OpenSRX::VersionTuple(0, 1, 0));
+    EXPECT_EQ(OpenSRX::GetVersion<std::string>(), "0.1.2");
+    EXPECT_EQ(OpenSRX::GetVersion<OpenSRX::VersionTuple>(), OpenSRX::VersionTuple(0, 1, 2));
 }
 
 // Main function to run tests

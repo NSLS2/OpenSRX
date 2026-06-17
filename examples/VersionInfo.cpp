@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include <argparse/argparse.hpp>
 #include <iostream>
 #include <memory>

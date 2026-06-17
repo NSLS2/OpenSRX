@@ -15,6 +15,8 @@
  *   ReadCodeDetailed --serial /dev/ttyUSB0
  */
 
+#include <spdlog/spdlog.h>
+
 #include <argparse/argparse.hpp>
 #include <iostream>
 #include <memory>

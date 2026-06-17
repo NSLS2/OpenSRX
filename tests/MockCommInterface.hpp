@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "OpenSRX/ICommInterface.hpp"
+#include "OpenSRX/WireTransport.hpp"
 
 // Put it in the OpenSRX namespace so we don't need to have the
 // friend class declaration use the global namespace qualifier.
