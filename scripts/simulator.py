@@ -8,7 +8,7 @@ as described in Chapter 14 (Command Communication) of the SRX300 User Manual.
 Supports:
   - All three communication formats (CR, CR+LF, STX/ETX)
   - Operation commands (LON, LOFF, RESET, KEYENCE, NUM, EMAC, etc.)
-  - Configuration commands (WB/RB, WP/RP, WD/RD, WN/RN)
+    - Configuration commands (WB/RB, WC/RC, WP/RP, WD/RD, WN/RN)
   - Tuning commands (TUNE/FTUNE/TQUIT)
   - Save/Load/Initialize (SAVE, LOAD, DFLT)
   - Status queries (CMDSTAT, ERRSTAT, BUSYSTAT)
@@ -78,6 +78,23 @@ class SRX300Simulator:
 
         # Parameter bank configuration storage: key = "BB_MMM" (bank + cmd number)
         self.bank_config: dict[str, str] = {}
+
+        # Tuning configuration storage: key = cmd_number string
+        self.tuning_config: dict[str, str] = {
+            # Pharmacode
+            "1803": "0",  # PHARMACODE_READ_DIRECTION
+            # Aztec
+            "1903": "0",  # AZTEC_MAX_READ_LENGTH
+            "1904": "0",  # AZTEC_MIN_READ_LENGTH
+            # Postal
+            "1905": "0",  # POSTAL_INTELLIGENT_MAIL
+            "1908": "0",  # POSTAL_JAPAN_READING
+            "1909": "0",  # POSTAL_MAX_READ_LENGTH
+            "1910": "0",  # POSTAL_MIN_READ_LENGTH
+            # DotCode
+            "1920": "0",  # DOTCODE_MAX_READ_LENGTH
+            "1921": "0",  # DOTCODE_MIN_READ_LENGTH
+        }
 
         # Operation configuration storage: key = cmd_number string
         self.op_config: dict[str, str] = {
@@ -228,6 +245,8 @@ class SRX300Simulator:
             # Configuration commands
             "WB": self._cmd_wb,
             "RB": self._cmd_rb,
+            "WC": self._cmd_wc,
+            "RC": self._cmd_rc,
             "WP": self._cmd_wp,
             "RP": self._cmd_rp,
             "WD": self._cmd_wd,
@@ -407,6 +426,17 @@ class SRX300Simulator:
             "101": "0", "102": "100", "200": "0", "201": "0", "205": "FF",
             "500": "0", "501": "0", "502": "0", "503": "0", "504": "0", "505": "0",
         }
+        self.tuning_config = {
+            "1803": "0",
+            "1903": "0",
+            "1904": "0",
+            "1905": "0",
+            "1908": "0",
+            "1909": "0",
+            "1910": "0",
+            "1920": "0",
+            "1921": "0",
+        }
         self.bank_config.clear()
         self.region_config.clear()
         return ["OK,DFLT"]
@@ -434,6 +464,24 @@ class SRX300Simulator:
             # Return a default value of 0
             return [f"OK,RB,0"]
         return [f"OK,RB,{value}"]
+
+    # ---- Configuration commands: WC/RC (tuning parameters) ----
+
+    def _cmd_wc(self, params: list[str]) -> list[str]:
+        if len(params) < 2:
+            return ["ER,WC,01"]
+        cmd_num = params[0]
+        value = params[1]
+        self.tuning_config[cmd_num] = value
+        logger.info("WC set %s = %s", cmd_num, value)
+        return ["OK,WC"]
+
+    def _cmd_rc(self, params: list[str]) -> list[str]:
+        if not params:
+            return ["ER,RC,01"]
+        cmd_num = params[0]
+        value = self.tuning_config.get(cmd_num, "0")
+        return [f"OK,RC,{value}"]
 
     # ---- Configuration commands: WP/RP (operation parameters) ----
 
