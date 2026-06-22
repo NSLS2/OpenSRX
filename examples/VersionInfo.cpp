@@ -12,13 +12,14 @@
 int main(int argc, char* argv[]) {
     argparse::ArgumentParser program("VersionInfo");
 
-    auto& group = program.add_mutually_exclusive_group(true);
-
-    group.add_argument("--ip").help("IP address of the scanner");
-    group.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
+    program.add_argument("--ip")
+        .help("IP address of the scanner")
+        .default_value(std::string("192.168.100.100"));
+    program.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
 
     program.add_argument("--port")
-        .help("Port number of the scanner (required with --ip)")
+        .help("Port number for socket connection")
+        .default_value(9004)
         .scan<'i', int>();
 
     program.add_argument("-d", "--debug")
@@ -30,12 +31,6 @@ int main(int argc, char* argv[]) {
         program.parse_args(argc, argv);
     } catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;
-        std::cerr << program;
-        return 1;
-    }
-
-    if (program.is_used("--ip") && !program.is_used("--port")) {
-        std::cerr << "Error: --port is required when using --ip" << std::endl;
         std::cerr << program;
         return 1;
     }

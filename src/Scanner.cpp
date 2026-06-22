@@ -257,6 +257,10 @@ void Scanner::startImageServer(const std::string& localIP, ImageSaveConfig saveC
         setParam<OperationParam::SAVE_DEST_UNSTABLE>(ImageSavingDestination::SEND_BY_FTP);
     if (saveConfig.capture)
         setParam<OperationParam::SAVE_DEST_CAPTURE>(ImageSavingDestination::SEND_BY_FTP);
+
+    // Communication settings (FTP IP, port, credentials) require a SAVE
+    // command before they take effect on the scanner.
+    saveSettings();
 }
 
 void Scanner::stopImageServer() {
@@ -273,6 +277,7 @@ void Scanner::stopImageServer() {
         setParam<OperationParam::SAVE_DEST_UNSTABLE>(savedImageDests->unstable);
         setParam<OperationParam::SAVE_DEST_CAPTURE>(savedImageDests->capture);
         savedImageDests.reset();
+        saveSettings();
     }
 }
 

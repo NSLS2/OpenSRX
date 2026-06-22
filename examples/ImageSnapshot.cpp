@@ -24,11 +24,15 @@
 int main(int argc, char* argv[]) {
     argparse::ArgumentParser program("ImageSnapshot");
 
-    auto& group = program.add_mutually_exclusive_group(true);
-    group.add_argument("--ip").help("IP address of the scanner");
-    group.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
+    program.add_argument("--ip")
+        .help("IP address of the scanner")
+        .default_value(std::string("192.168.100.100"));
+    program.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
 
-    program.add_argument("--port").help("Port number (required with --ip)").scan<'i', int>();
+    program.add_argument("--port")
+        .help("Port number for socket connection")
+        .default_value(9004)
+        .scan<'i', int>();
 
     program.add_argument("--local-ip")
         .help("This machine's IP address as reachable from the scanner")
@@ -56,11 +60,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (program.is_used("--ip") && !program.is_used("--port")) {
-        std::cerr << "Error: --port is required when using --ip" << std::endl;
-        return 1;
-    }
-
     spdlog::set_level(program.get<bool>("--debug") ? spdlog::level::debug : spdlog::level::info);
 
     // Connect to the scanner
@@ -77,11 +76,14 @@ int main(int argc, char* argv[]) {
 
     // Configure the scanner to save capture images as BMP via FTP
     scanner.setParam<OpenSRX::OperationParam::IMAGE_FORMAT>(OpenSRX::ImageFormat::BMP);
+    scanner.setParam<OpenSRX::OperationParam::IMAGE_SAVING_MODE>(OpenSRX::ImageSavingMode::LATEST_BANK_IMAGE);
 
     // Start the FTP server — enable only capture image saving
     OpenSRX::ImageSaveConfig saveConfig;
     saveConfig.readOK = false;
-    saveConfig.capture = true;
+    saveConfig.verificationNG = false;
+    saveConfig.readError = false;
+    saveConfig.unstable = false;
 
     std::string localIP = program.get("--local-ip");
     scanner.startImageServer(localIP, saveConfig);

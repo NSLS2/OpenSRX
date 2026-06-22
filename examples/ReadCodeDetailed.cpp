@@ -26,11 +26,15 @@
 int main(int argc, char* argv[]) {
     argparse::ArgumentParser program("ReadCodeDetailed");
 
-    auto& group = program.add_mutually_exclusive_group(true);
-    group.add_argument("--ip").help("IP address of the scanner");
-    group.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
+    program.add_argument("--ip")
+        .help("IP address of the scanner")
+        .default_value(std::string("192.168.100.100"));
+    program.add_argument("--serial").help("Serial port device path (e.g. /dev/ttyUSB0)");
 
-    program.add_argument("--port").help("Port number (required with --ip)").scan<'i', int>();
+    program.add_argument("--port")
+        .help("Port number for socket connection")
+        .default_value(9004)
+        .scan<'i', int>();
 
     program.add_argument("--bank")
         .help("Bank number to use for reading (1-16, omit for default)")
@@ -46,11 +50,6 @@ int main(int argc, char* argv[]) {
     } catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
-        return 1;
-    }
-
-    if (program.is_used("--ip") && !program.is_used("--port")) {
-        std::cerr << "Error: --port is required when using --ip" << std::endl;
         return 1;
     }
 

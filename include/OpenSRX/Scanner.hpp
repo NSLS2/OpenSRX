@@ -73,10 +73,10 @@ std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw);
  */
 struct ImageSaveConfig {
     bool readOK = true;           ///< SAVE_DEST_READ_OK (500)
-    bool verificationNG = false;  ///< SAVE_DEST_VERIFICATION_NG (501)
-    bool readError = false;       ///< SAVE_DEST_READ_ERROR (502)
-    bool unstable = false;        ///< SAVE_DEST_UNSTABLE (503)
-    bool capture = false;         ///< SAVE_DEST_CAPTURE (504)
+    bool verificationNG = true;  ///< SAVE_DEST_VERIFICATION_NG (501)
+    bool readError = true;       ///< SAVE_DEST_READ_ERROR (502)
+    bool unstable = true;        ///< SAVE_DEST_UNSTABLE (503)
+    bool capture = true;         ///< SAVE_DEST_CAPTURE (504)
 };
 
 /**

@@ -1,6 +1,7 @@
 #include "OpenSRX/ICommInterface.hpp"
 
 #include "OpenSRX/WireTransport.hpp"
+#include "spdlog/spdlog.h"
 
 namespace OpenSRX {
 
@@ -13,6 +14,7 @@ std::string ICommInterface::sendCommand(const std::string& command) {
 
 std::string ICommInterface::sendCommandUnlocked(const std::string& command) {
     const std::string fullCommand = addHeaderAndTerminator(command);
+    spdlog::debug("Sending command: {}", command);
     wire->write(fullCommand);
 
     std::string result = wire->readUntil(inTermStr);
