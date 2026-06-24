@@ -18,7 +18,7 @@
 #include "OpenSRX/CommParam.hpp"
 #include "OpenSRX/ICommInterface.hpp"
 #include "OpenSRX/Image.hpp"
-#include "OpenSRX/ImageServer.hpp"
+#include "OpenSRX/FtpClient.hpp"
 #include "OpenSRX/OperationParam.hpp"
 #include "OpenSRX/ParamTraits.hpp"
 #include "OpenSRX/ParamValues.hpp"

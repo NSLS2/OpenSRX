@@ -28,16 +28,8 @@ class SocketInterface : public ICommInterface {
     /// @copydoc ICommInterface::describe()
     std::string describe() const override { return ip + ":" + std::to_string(port); };
 
-    /**
-     * @brief Start a local FTP server for receiving data from the scanner.
-     *
-     * @param address        Local address to bind to.
-     * @param port           FTP port to listen on.
-     * @param mountPoint     Local filesystem path to serve.
-     * @param threadPoolSize Number of FTP server threads.
-     */
-    void startFtpServer(const std::string& address, int port, const std::string& mountPoint,
-                        int threadPoolSize = 4);
+    /// @copydoc ICommInterface::getHost()
+    std::string getHost() const override { return ip; }
 
    private:
     std::string ip;  ///< Scanner IP address.

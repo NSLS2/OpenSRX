@@ -31,12 +31,6 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-FetchContent_Declare(
-    fineftp
-    URL https://github.com/eclipse-ecal/fineftp-server/archive/refs/tags/v1.6.0.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-
 FetchContent_GetProperties(asio)
 if(NOT asio_POPULATED)
     if(POLICY CMP0169)
@@ -46,19 +40,6 @@ if(NOT asio_POPULATED)
 endif()
 
 FetchContent_MakeAvailable(spdlog)
-
-# Set asio_INCLUDE_DIR so fineftp's Findasio.cmake finds our already-fetched Asio headers.
-set(asio_INCLUDE_DIR "${asio_SOURCE_DIR}/asio/include" CACHE PATH "" FORCE)
-set(FINEFTP_SERVER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-FetchContent_GetProperties(fineftp)
-if(NOT fineftp_POPULATED)
-    FetchContent_Populate(fineftp)
-    # Build fineftp as static so it's linked into libOpenSRX.so
-    set(_saved_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
-    add_subdirectory(${fineftp_SOURCE_DIR} ${fineftp_BINARY_DIR} EXCLUDE_FROM_ALL)
-    set(BUILD_SHARED_LIBS ${_saved_BUILD_SHARED_LIBS})
-endif()
 
 add_library(asio_headers INTERFACE)
 add_library(asio::asio ALIAS asio_headers)

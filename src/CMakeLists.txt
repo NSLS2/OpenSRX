@@ -5,8 +5,8 @@ else()
 endif()
 
 add_library(OpenSRX ${OPENSRX_LIBRARY_TYPE}
+    FtpClient.cpp
     Image.cpp
-    ImageServer.cpp
     ParamTraits.cpp
     Scanner.cpp
     SerialInterface.cpp
@@ -20,7 +20,6 @@ target_link_libraries(OpenSRX
     PUBLIC
         asio::asio
         spdlog::spdlog_header_only
-        fineftp::server
 )
 
 target_include_directories(OpenSRX

@@ -19,13 +19,14 @@ Usage:
 """
 
 import argparse
-import ftplib
 import io
 import logging
 import math
+import os
 import random
 import socket
 import string
+import struct
 import threading
 import time
 from datetime import datetime
@@ -145,6 +146,11 @@ class SRX300Simulator:
 
         # Image capture counter (for file naming)
         self._image_counter = 0
+
+        # Image store: maps filename -> bytes (BMP data) for FTP serving
+        self._image_store: dict[str, bytes] = {}
+        # Ordered list of image filenames for "latest" queries
+        self._image_filenames: list[str] = []
 
         # Status
         self.cmd_status = "none"
@@ -572,14 +578,9 @@ class SRX300Simulator:
         except ValueError:
             return ["ER,SHOT,01"]
 
-        # Check if FTP image push is enabled for capture images (WP 504)
-        cap_save = self.op_config.get("504", "0")
-        img_name = ""
-        if cap_save in ("3", "5", "6"):
-            code_data = ""  # no barcode for snapshot
-            img_name, _ = self._generate_and_push_image(code_data, bank, draw_overlay=False)
-        else:
-            img_name = f"SHOT_{bank:02d}.bmp"
+        # Always generate and store the image for FTP pull
+        code_data = ""  # no barcode for snapshot
+        img_name, _ = self._generate_and_store_image(code_data, bank, draw_overlay=False)
         return [f"OK,SHOT,A:\\IMAGE\\{img_name}"]
 
     # ---- Simulated read result ----
@@ -598,12 +599,10 @@ class SRX300Simulator:
         corners: list[tuple[int, int]] = []
         center: tuple[int, int] = (0, 0)
 
-        # Check if FTP image push is enabled for OK images (WP 500)
-        ok_save = self.op_config.get("500", "0")
-        if ok_save in ("3", "5", "6"):
-            _, corners = self._generate_and_push_image(code_data, bank or 1, draw_overlay=True)
+        # Always generate and store an image during reads for FTP pull
+        _, corners = self._generate_and_store_image(code_data, bank or 1, draw_overlay=True)
 
-        # If corners were not generated (no image push), synthesize some
+        # If corners were not generated (no PIL), synthesize some
         if not corners:
             rng = random.Random(hash(code_data))
             cx, cy = 320 + rng.randint(-60, 60), 240 + rng.randint(-40, 40)
@@ -654,12 +653,12 @@ class SRX300Simulator:
 
     # ---- Image generation and FTP push ----
 
-    def _generate_and_push_image(
+    def _generate_and_store_image(
         self, code_data: str, bank: int, img_width: int = 640, img_height: int = 480,
         draw_overlay: bool = True,
     ) -> tuple[str, list[tuple[int, int]]]:
-        """Generate a simulated camera image and push it to the configured FTP
-        server. When draw_overlay is True (code read), a bounding box and text
+        """Generate a simulated camera image and store it for FTP retrieval.
+        When draw_overlay is True (code read), a bounding box and text
         are drawn. When False (snapshot/capture), only the raw scene is shown.
         Returns (filename, corner_coords)."""
         self._image_counter += 1
@@ -667,7 +666,11 @@ class SRX300Simulator:
         filename = f"B{bank:02d}_{timestamp}_{self._image_counter:06d}.bmp"
 
         if not _HAS_PIL:
-            logger.warning("Pillow not installed; skipping image generation")
+            logger.warning("Pillow not installed; generating minimal BMP")
+            # Generate a minimal valid 8-bit grayscale BMP even without PIL
+            bmp_data = self._generate_minimal_bmp(img_width, img_height)
+            self._image_store[filename] = bmp_data
+            self._image_filenames.append(filename)
             return filename, []
 
         img, corners = self._render_barcode_image(
@@ -681,8 +684,49 @@ class SRX300Simulator:
         else:
             logger.info("Generated snapshot image %s", filename)
 
-        self._ftp_push_image(img, filename)
+        # Store image as BMP bytes for FTP serving
+        buf = io.BytesIO()
+        img.save(buf, format="BMP")
+        self._image_store[filename] = buf.getvalue()
+        self._image_filenames.append(filename)
+        logger.debug("Stored image %s (%d bytes) for FTP", filename, len(self._image_store[filename]))
         return filename, corners
+
+    @staticmethod
+    def _generate_minimal_bmp(width: int = 640, height: int = 480) -> bytes:
+        """Generate a minimal valid 8-bit grayscale BMP without PIL."""
+        row_bytes = width
+        row_padding = (4 - (row_bytes % 4)) % 4
+        image_size = (row_bytes + row_padding) * height
+        palette_size = 256 * 4
+        pixel_offset = 54 + palette_size
+        file_size = pixel_offset + image_size
+
+        data = bytearray()
+        # File header
+        data += b"BM"
+        data += struct.pack("<I", file_size)
+        data += struct.pack("<HH", 0, 0)
+        data += struct.pack("<I", pixel_offset)
+        # DIB header
+        data += struct.pack("<I", 40)
+        data += struct.pack("<i", width)
+        data += struct.pack("<i", height)
+        data += struct.pack("<HH", 1, 8)
+        data += struct.pack("<I", 0)
+        data += struct.pack("<I", image_size)
+        data += struct.pack("<i", 2835)
+        data += struct.pack("<i", 2835)
+        data += struct.pack("<I", 256)
+        data += struct.pack("<I", 0)
+        # Palette
+        for i in range(256):
+            data += struct.pack("BBBB", i, i, i, 0)
+        # Pixel data (gradient)
+        for y in range(height):
+            row = bytes([((x + y) * 37) % 256 for x in range(width)])
+            data += row + b"\x00" * row_padding
+        return bytes(data)
 
     @staticmethod
     def _render_barcode_image(
@@ -786,51 +830,177 @@ class SRX300Simulator:
 
         return img, corners
 
-    def _ftp_push_image(self, img: "Image.Image", filename: str) -> None:
-        """Push a PIL Image to the configured FTP server (in a background thread)."""
-        ftp_ip = self.comm_config.get("400", "0.0.0.0")
-        if ftp_ip == "0.0.0.0":
-            logger.debug("FTP server not configured (IP 0.0.0.0); skipping image push")
+
+class FtpClientHandler(threading.Thread):
+    """Handles a single FTP client session with minimal FTP protocol support."""
+
+    def __init__(self, conn: socket.socket, addr, simulator: SRX300Simulator, host: str):
+        super().__init__(daemon=True)
+        self.conn = conn
+        self.addr = addr
+        self.sim = simulator
+        self.host = host
+
+    def _send(self, msg: str) -> None:
+        self.conn.sendall((msg + "\r\n").encode("ascii"))
+
+    def _recv_line(self) -> str:
+        buf = b""
+        while b"\r\n" not in buf and b"\n" not in buf:
+            data = self.conn.recv(1024)
+            if not data:
+                return ""
+            buf += data
+        line = buf.decode("ascii", errors="replace").strip()
+        return line
+
+    def run(self) -> None:
+        logger.debug("FTP client connected: %s:%d", *self.addr)
+        try:
+            self._send("220 SR-X300 FTP Server Ready")
+            while True:
+                line = self._recv_line()
+                if not line:
+                    break
+                parts = line.split(None, 1)
+                cmd = parts[0].upper()
+                arg = parts[1] if len(parts) > 1 else ""
+
+                if cmd == "USER":
+                    self._send("230 Login successful")
+                elif cmd == "PASS":
+                    self._send("230 Login successful")
+                elif cmd == "SYST":
+                    self._send("215 UNIX Type: L8")
+                elif cmd == "FEAT":
+                    self._send("211 End")
+                elif cmd == "PWD":
+                    self._send('257 "/" is current directory')
+                elif cmd == "CWD":
+                    self._send("250 Directory changed")
+                elif cmd == "TYPE":
+                    self._send("200 Type set")
+                elif cmd == "PASV":
+                    self._handle_pasv()
+                elif cmd == "NLST":
+                    self._handle_nlst(arg)
+                elif cmd == "LIST":
+                    self._handle_list(arg)
+                elif cmd == "RETR":
+                    self._handle_retr(arg)
+                elif cmd == "QUIT":
+                    self._send("221 Goodbye")
+                    break
+                else:
+                    self._send(f"502 Command not implemented: {cmd}")
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            pass
+        finally:
+            self.conn.close()
+
+    def _handle_pasv(self) -> None:
+        """Open a data port and report it to the client."""
+        # Bind an ephemeral port for the data connection
+        self._data_srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._data_srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._data_srv.bind((self.host, 0))
+        self._data_srv.listen(1)
+        _, data_port = self._data_srv.getsockname()
+
+        # Format: (h1,h2,h3,h4,p1,p2)
+        ip_parts = self.host.replace(".", ",")
+        p1 = data_port >> 8
+        p2 = data_port & 0xFF
+        self._send(f"227 Entering Passive Mode ({ip_parts},{p1},{p2})")
+
+    def _get_data_conn(self) -> socket.socket:
+        """Accept the data connection from the client."""
+        self._data_srv.settimeout(10)
+        conn, _ = self._data_srv.accept()
+        self._data_srv.close()
+        return conn
+
+    def _handle_nlst(self, path: str) -> None:
+        """Return filenames in the /IMAGE directory."""
+        self._send("150 Opening data connection")
+        data_conn = self._get_data_conn()
+        try:
+            with self.sim._lock:
+                filenames = list(self.sim._image_filenames)
+            listing = "\r\n".join(filenames)
+            if listing:
+                listing += "\r\n"
+            data_conn.sendall(listing.encode("ascii"))
+        finally:
+            data_conn.close()
+        self._send("226 Transfer complete")
+
+    def _handle_list(self, path: str) -> None:
+        """Return a detailed listing (Unix ls -l style) for /IMAGE."""
+        self._send("150 Opening data connection")
+        data_conn = self._get_data_conn()
+        try:
+            with self.sim._lock:
+                filenames = list(self.sim._image_filenames)
+                store = self.sim._image_store
+            lines = []
+            for fn in filenames:
+                size = len(store.get(fn, b""))
+                lines.append(f"-rw-r--r-- 1 ftp ftp {size:>10d} Jan  1 00:00 {fn}")
+            listing = "\r\n".join(lines)
+            if listing:
+                listing += "\r\n"
+            data_conn.sendall(listing.encode("ascii"))
+        finally:
+            data_conn.close()
+        self._send("226 Transfer complete")
+
+    def _handle_retr(self, path: str) -> None:
+        """Send a file's contents to the client."""
+        # Normalize path: strip leading /IMAGE/ or /IMAGE\ prefix
+        filename = path.strip("/")
+        if filename.upper().startswith("IMAGE/"):
+            filename = filename[6:]
+        elif filename.upper().startswith("IMAGE\\"):
+            filename = filename[6:]
+
+        with self.sim._lock:
+            data = self.sim._image_store.get(filename)
+
+        if data is None:
+            self._send(f"550 File not found: {path}")
             return
 
-        username = self.comm_config.get("401", "admin")
-        password = self.comm_config.get("402", "admin")
-        use_subfolder = self.comm_config.get("403", "0") == "1"
-        subfolder = self.comm_config.get("404", "image")
-        passive = self.comm_config.get("408", "0") == "1"
-        ftp_port = int(self.comm_config.get("442", "21"))
+        self._send("150 Opening data connection")
+        data_conn = self._get_data_conn()
+        try:
+            data_conn.sendall(data)
+        finally:
+            data_conn.close()
+        self._send("226 Transfer complete")
 
-        remote_path = PurePosixPath(subfolder) / filename if use_subfolder else PurePosixPath(filename)
 
-        buf = io.BytesIO()
-        img.save(buf, format="BMP")
-        buf.seek(0)
+class FtpServer(threading.Thread):
+    """Minimal anonymous FTP server that serves images from the simulator's store."""
 
-        def _do_push():
+    def __init__(self, simulator: SRX300Simulator, host: str = "127.0.0.1", port: int = 21):
+        super().__init__(daemon=True)
+        self.sim = simulator
+        self.host = host
+        self.port = port
+
+    def run(self) -> None:
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind((self.host, self.port))
+        srv.listen(4)
+        logger.info("FTP server listening on %s:%d", self.host, self.port)
+        while True:
             try:
-                ftp = ftplib.FTP()
-                ftp.connect(ftp_ip, ftp_port, timeout=5)
-                ftp.login(username, password)
-                if passive:
-                    ftp.set_pasv(True)
-                else:
-                    ftp.set_pasv(False)
-
-                if use_subfolder:
-                    try:
-                        ftp.mkd(subfolder)
-                    except ftplib.error_perm:
-                        pass  # already exists
-
-                ftp.storbinary(f"STOR {remote_path}", buf)
-                ftp.quit()
-                logger.info("FTP push OK -> %s@%s:%s", username, ftp_ip, remote_path)
-            except Exception as e:
-                logger.error("FTP push failed -> %s: %s", ftp_ip, e)
-                with self._lock:
-                    self.error_status = "hostconnect"
-
-        threading.Thread(target=_do_push, daemon=True).start()
+                conn, addr = srv.accept()
+                FtpClientHandler(conn, addr, self.sim, self.host).start()
+            except OSError:
+                break
 
 
 class ClientHandler(threading.Thread):
@@ -873,6 +1043,179 @@ class ClientHandler(threading.Thread):
             logger.info("Client %s:%d handler finished", *self.addr)
 
 
+class FtpServer(threading.Thread):
+    """Minimal anonymous FTP server that serves images from the simulator's store.
+
+    Supports: USER, PASS, SYST, TYPE, PASV, NLST, RETR, QUIT, PWD, CWD.
+    The virtual filesystem has a single directory /IMAGE/ containing all stored images.
+    """
+
+    def __init__(self, simulator: SRX300Simulator, host: str = "127.0.0.1", port: int = 21):
+        super().__init__(daemon=True)
+        self.sim = simulator
+        self.host = host
+        self.port = port
+        self._server_sock: socket.socket | None = None
+
+    def run(self):
+        self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._server_sock.bind((self.host, self.port))
+        self._server_sock.listen(4)
+        logger.info("FTP server listening on %s:%d", self.host, self.port)
+        try:
+            while True:
+                conn, addr = self._server_sock.accept()
+                threading.Thread(
+                    target=self._handle_client, args=(conn, addr), daemon=True
+                ).start()
+        except OSError:
+            pass  # server closed
+
+    def _handle_client(self, conn: socket.socket, addr):
+        logger.debug("FTP client connected: %s:%d", *addr)
+        cwd = "/"
+        transfer_type = "A"
+        try:
+            conn.sendall(b"220 SR-X FTP Server Ready\r\n")
+            while True:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                lines = data.decode("ascii", errors="replace").split("\r\n")
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split(None, 1)
+                    cmd = parts[0].upper()
+                    arg = parts[1] if len(parts) > 1 else ""
+                    logger.debug("FTP << %s %s", cmd, arg)
+
+                    if cmd == "USER":
+                        conn.sendall(b"230 Login successful\r\n")
+                    elif cmd == "PASS":
+                        conn.sendall(b"230 Login successful\r\n")
+                    elif cmd == "SYST":
+                        conn.sendall(b"215 UNIX Type: L8\r\n")
+                    elif cmd == "PWD":
+                        conn.sendall(f'257 "{cwd}"\r\n'.encode())
+                    elif cmd == "CWD":
+                        target = arg.strip()
+                        if target in ("/", "/IMAGE", "/IMAGE/", "IMAGE"):
+                            cwd = "/IMAGE"
+                            conn.sendall(b"250 Directory changed\r\n")
+                        else:
+                            conn.sendall(b"550 Directory not found\r\n")
+                    elif cmd == "TYPE":
+                        transfer_type = arg.strip().upper()
+                        conn.sendall(b"200 Type set\r\n")
+                    elif cmd == "PASV":
+                        # Open a data port
+                        data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        data_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        data_sock.bind((self.host, 0))
+                        data_sock.listen(1)
+                        data_port = data_sock.getsockname()[1]
+                        # Format IP for PASV response
+                        ip_parts = self.host.replace(".", ",")
+                        p1 = data_port >> 8
+                        p2 = data_port & 0xFF
+                        conn.sendall(
+                            f"227 Entering Passive Mode ({ip_parts},{p1},{p2})\r\n".encode()
+                        )
+                        # Wait for data connection (with timeout)
+                        data_sock.settimeout(10)
+                        try:
+                            data_conn, _ = data_sock.accept()
+                        except socket.timeout:
+                            data_sock.close()
+                            conn.sendall(b"425 Can't open data connection\r\n")
+                            continue
+
+                        # Store for next transfer command
+                        # Process next command that uses data connection
+                        next_data = conn.recv(4096)
+                        if not next_data:
+                            data_conn.close()
+                            data_sock.close()
+                            break
+                        next_lines = next_data.decode("ascii", errors="replace").split("\r\n")
+                        for next_line in next_lines:
+                            next_line = next_line.strip()
+                            if not next_line:
+                                continue
+                            next_parts = next_line.split(None, 1)
+                            next_cmd = next_parts[0].upper()
+                            next_arg = next_parts[1] if len(next_parts) > 1 else ""
+                            logger.debug("FTP << %s %s", next_cmd, next_arg)
+
+                            if next_cmd == "NLST":
+                                self._handle_nlst(conn, data_conn, next_arg, cwd)
+                            elif next_cmd == "RETR":
+                                self._handle_retr(conn, data_conn, next_arg, cwd)
+                            else:
+                                conn.sendall(f"502 Command not implemented: {next_cmd}\r\n".encode())
+                                data_conn.close()
+                            break
+                        data_sock.close()
+                    elif cmd == "NLST":
+                        # Without PASV - shouldn't happen normally but handle gracefully
+                        conn.sendall(b"425 Use PASV first\r\n")
+                    elif cmd == "RETR":
+                        conn.sendall(b"425 Use PASV first\r\n")
+                    elif cmd == "QUIT":
+                        conn.sendall(b"221 Goodbye\r\n")
+                        conn.close()
+                        return
+                    else:
+                        conn.sendall(f"502 Command not implemented: {cmd}\r\n".encode())
+        except (ConnectionResetError, BrokenPipeError, OSError) as e:
+            logger.debug("FTP client %s:%d disconnected: %s", *addr, e)
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+            logger.debug("FTP client %s:%d handler finished", *addr)
+
+    def _handle_nlst(self, ctrl: socket.socket, data: socket.socket, arg: str, cwd: str):
+        """Handle NLST command - return file names."""
+        ctrl.sendall(b"150 Opening data connection\r\n")
+        # List all stored images
+        with self.sim._lock:
+            filenames = list(self.sim._image_filenames)
+        listing = "\r\n".join(filenames)
+        if listing:
+            listing += "\r\n"
+        data.sendall(listing.encode("ascii"))
+        data.close()
+        ctrl.sendall(b"226 Transfer complete\r\n")
+
+    def _handle_retr(self, ctrl: socket.socket, data: socket.socket, arg: str, cwd: str):
+        """Handle RETR command - send file data."""
+        # Normalize path - strip /IMAGE/ prefix if present
+        path = arg.strip()
+        filename = path
+        for prefix in ("/IMAGE/", "IMAGE/", "/"):
+            if filename.startswith(prefix):
+                filename = filename[len(prefix):]
+                break
+
+        with self.sim._lock:
+            file_data = self.sim._image_store.get(filename)
+
+        if file_data is None:
+            data.close()
+            ctrl.sendall(f"550 File not found: {path}\r\n".encode())
+            return
+
+        ctrl.sendall(b"150 Opening data connection\r\n")
+        data.sendall(file_data)
+        data.close()
+        ctrl.sendall(b"226 Transfer complete\r\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="SR-X 300 Reader Socket Interface Simulator"
@@ -906,24 +1249,10 @@ def main():
         help=f"Simulated firmware version (default: {DEFAULT_FIRMWARE})",
     )
     parser.add_argument(
-        "--ftp-server",
-        default=None,
-        help="Remote FTP server IP to push images to (sets WN 400)",
-    )
-    parser.add_argument(
-        "--ftp-user",
-        default="admin",
-        help="FTP username (default: admin)",
-    )
-    parser.add_argument(
-        "--ftp-password",
-        default="admin",
-        help="FTP password (default: admin)",
-    )
-    parser.add_argument(
-        "--ftp-subfolder",
-        default=None,
-        help="FTP subfolder for images (enables WN 403/404)",
+        "--ftp-port",
+        type=int,
+        default=21,
+        help="Port for the built-in FTP server (default: 21)",
     )
     args = parser.parse_args()
 
@@ -931,17 +1260,9 @@ def main():
     sim.model = args.model
     sim.firmware = args.firmware
 
-    # Apply FTP CLI overrides
-    if args.ftp_server:
-        sim.comm_config["400"] = args.ftp_server
-        sim.comm_config["401"] = args.ftp_user
-        sim.comm_config["402"] = args.ftp_password
-        # Enable FTP for OK images by default when server is provided
-        sim.op_config["500"] = "3"
-        logger.info("FTP image push configured -> %s (user: %s)", args.ftp_server, args.ftp_user)
-    if args.ftp_subfolder:
-        sim.comm_config["403"] = "1"
-        sim.comm_config["404"] = args.ftp_subfolder
+    # Start built-in FTP server for image retrieval
+    ftp_srv = FtpServer(sim, host=args.host, port=args.ftp_port)
+    ftp_srv.start()
 
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

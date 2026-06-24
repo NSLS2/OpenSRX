@@ -6,7 +6,7 @@
 
 #include "OpenSRX/Code.hpp"
 #include "OpenSRX/ICommInterface.hpp"
-#include "OpenSRX/ImageServer.hpp"
+#include "OpenSRX/Image.hpp"
 #include "OpenSRX/ParamTraits.hpp"
 #include "OpenSRX/Timestamp.hpp"
 
@@ -64,20 +64,6 @@ enum class TuningFailureReason {
 /// @return A tuple of (model, firmwareVersion).
 /// @throws std::runtime_error if the format is unexpected.
 std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw);
-
-/**
- * @brief Configuration for which image types to save via FTP.
- *
- * Each flag, when true, sets the corresponding SAVE_DEST parameter to
- * SEND_BY_FTP. When false the parameter is left unchanged.
- */
-struct ImageSaveConfig {
-    bool readOK = true;           ///< SAVE_DEST_READ_OK (500)
-    bool verificationNG = true;  ///< SAVE_DEST_VERIFICATION_NG (501)
-    bool readError = true;       ///< SAVE_DEST_READ_ERROR (502)
-    bool unstable = true;        ///< SAVE_DEST_UNSTABLE (503)
-    bool capture = true;         ///< SAVE_DEST_CAPTURE (504)
-};
 
 /**
  * @brief High-level interface to a KEYENCE SR-X series barcode scanner.
@@ -293,63 +279,42 @@ class Scanner {
     /** @brief Clear the PLC link error flag. */
     void clearPLCLinkError();
 
-    // ─── Image server ───────────────────────────────────────────────────────
+    // ─── Image retrieval ────────────────────────────────────────────────────
 
     /**
-     * @brief Start an embedded FTP server and configure the scanner to send
-     *        images to it.
+     * @brief Download an image from the scanner's FTP server and decode it.
      *
-     * The server listens on a free port by default. The scanner's FTP IP,
-     * username, password, and port parameters are written automatically.
-     * Image saving destinations selected in @p saveConfig are set to
-     * SEND_BY_FTP; they are restored to their previous values when
-     * stopImageServer() is called.
+     * The scanner runs an anonymous FTP server on port 21. This method
+     * connects to it and retrieves the file at the given path.
      *
-     * @param localIP     The IP address of this machine as reachable from the
-     *                    scanner (e.g. "192.168.1.100").
-     * @param saveConfig  Which image types to send via FTP (default: read OK only).
-     * @param port        FTP port (0 = OS picks a free port).
-     * @param username    FTP username.
-     * @param password    FTP password.
+     * @param remotePath  Path on the scanner (e.g. "/IMAGE/001_C_01.BMP")
+     *                    as returned by captureImage().
+     * @return The decoded image.
      */
-    void startImageServer(const std::string& localIP, ImageSaveConfig saveConfig = {},
-                          uint16_t port = 21, const std::string& username = "opensrx",
-                          const std::string& password = "opensrx");
-
-    /** Stop the embedded FTP image server. */
-    void stopImageServer();
+    Image fetchImage(const std::string& remotePath);
 
     /**
-     * @brief Block until the scanner delivers an image via FTP, decode it,
-     *        and return the raw pixel data.
+     * @brief Fetch the most recently saved image from the scanner.
      *
-     * Requires startImageServer() to have been called first.
-     */
-    Image waitForImage();
-
-    /**
-     * @brief Return the next image if one is available, without blocking.
+     * Lists the /IMAGE/ directory on the scanner's FTP server and downloads
+     * the last (newest) file. Useful for retrieving the image taken during
+     * a read operation without issuing a separate SHOT command.
      *
-     * @param[out] image  Filled on success.
-     * @return true if an image was available.
+     * @return The decoded image.
+     * @throws std::runtime_error if no images are found or connection fails.
      */
-    bool tryGetImage(Image& image);
+    Image fetchLatestImage();
 
     /**
-     * @brief Return all images currently queued.
+     * @brief Capture a snapshot and return the decoded image.
+     *
+     * Sends SHOT to the scanner, then downloads the resulting image file
+     * via the scanner's built-in FTP server.
+     *
+     * @param bank Bank number (1–16).
+     * @return The decoded image.
      */
-    std::deque<Image> getImages();
-
-    /**
-     * @brief Set a callback invoked on the watcher thread each time a new
-     *        image is decoded.
-     */
-    void setImageCallback(std::function<void(const Image&)> cb);
-
-    /**
-     * @brief Access the underlying ImageServer (nullptr if not started).
-     */
-    ImageServer* getImageServer() { return imageServer.get(); }
+    Image captureSnapshot(int bank);
 
     // ─── Bank parameters (WB/RB) ───────────────────────────────────────────
 
@@ -485,21 +450,10 @@ class Scanner {
      */
     std::string checkResponse(const std::string& response);
 
-    ICommInterface& comm;                      ///< Communication interface to the scanner.
-    std::string model;                         ///< Scanner model string.
-    std::string firmwareVersion;               ///< Scanner firmware version string.
-    std::string macAddress;                    ///< Scanner MAC address string.
-    std::unique_ptr<ImageServer> imageServer;  ///< Embedded FTP image server (if started).
-
-    /// Previous SAVE_DEST values saved by startImageServer, restored on stop.
-    struct SavedImageDests {
-        ImageSavingDestination readOK;
-        ImageSavingDestination verificationNG;
-        ImageSavingDestination readError;
-        ImageSavingDestination unstable;
-        ImageSavingDestination capture;
-    };
-    std::unique_ptr<SavedImageDests> savedImageDests;
+    ICommInterface& comm;           ///< Communication interface to the scanner.
+    std::string model;              ///< Scanner model string.
+    std::string firmwareVersion;    ///< Scanner firmware version string.
+    std::string macAddress;         ///< Scanner MAC address string.
 };
 
 }  // namespace OpenSRX

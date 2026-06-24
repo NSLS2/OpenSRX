@@ -33,4 +33,13 @@ struct Image {
  */
 Image decodeBMP(const std::string& path);
 
+/**
+ * @brief Decode a BMP from an in-memory byte buffer.
+ *
+ * @param data The raw BMP file bytes.
+ * @return The decoded Image.
+ * @throws std::runtime_error on format errors.
+ */
+Image decodeBMPFromMemory(const std::vector<uint8_t>& data);
+
 }  // namespace OpenSRX

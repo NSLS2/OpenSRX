@@ -101,4 +101,52 @@ Image decodeBMP(const std::string& path) {
     return img;
 }
 
+Image decodeBMPFromMemory(const std::vector<uint8_t>& data) {
+    if (data.size() < 54) throw std::runtime_error("BMP data too small");
+    if (data[0] != 'B' || data[1] != 'M') throw std::runtime_error("Not a BMP file");
+
+    uint32_t pixelOffset = readLE<uint32_t>(data.data() + 10);
+    int32_t width = readLE<int32_t>(data.data() + 18);
+    int32_t height = readLE<int32_t>(data.data() + 22);
+    uint16_t bitsPerPx = readLE<uint16_t>(data.data() + 28);
+    uint32_t compression = readLE<uint32_t>(data.data() + 30);
+
+    if (compression != 0) throw std::runtime_error("Compressed BMPs are not supported");
+
+    bool topDown = height < 0;
+    if (topDown) height = -height;
+    if (width <= 0 || height <= 0) throw std::runtime_error("Invalid BMP dimensions");
+
+    int channels;
+    switch (bitsPerPx) {
+        case 8: channels = 1; break;
+        case 24: channels = 3; break;
+        case 32: channels = 4; break;
+        default:
+            throw std::runtime_error("Unsupported BMP bit depth: " + std::to_string(bitsPerPx));
+    }
+
+    int rowBytes = width * (bitsPerPx / 8);
+    int rowPadding = (4 - (rowBytes % 4)) % 4;
+    int paddedRowBytes = rowBytes + rowPadding;
+
+    size_t requiredSize = pixelOffset + static_cast<size_t>(paddedRowBytes) * height;
+    if (data.size() < requiredSize)
+        throw std::runtime_error("BMP data truncated");
+
+    Image img;
+    img.width = width;
+    img.height = height;
+    img.channels = channels;
+    img.data.resize(static_cast<size_t>(width) * height * channels);
+
+    for (int y = 0; y < height; ++y) {
+        const uint8_t* row = data.data() + pixelOffset + static_cast<size_t>(y) * paddedRowBytes;
+        int destRow = topDown ? y : (height - 1 - y);
+        std::memcpy(img.data.data() + static_cast<size_t>(destRow) * rowBytes, row, rowBytes);
+    }
+
+    return img;
+}
+
 }  // namespace OpenSRX

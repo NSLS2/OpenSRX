@@ -5,6 +5,8 @@
 #include <sstream>
 #include <vector>
 
+#include "OpenSRX/FtpClient.hpp"
+
 namespace OpenSRX {
 
 std::tuple<std::string, std::string> parseVersionInfo(const std::string& raw) {
@@ -220,85 +222,46 @@ void Scanner::clearFTPCommsError() { checkResponse(comm.sendCommand("HCLR")); }
 
 void Scanner::clearPLCLinkError() { checkResponse(comm.sendCommand("PCLR")); }
 
-// ─── Image server ────────────────────────────────────────────────────────────
+// ─── Image retrieval ─────────────────────────────────────────────────────────
 
-void Scanner::startImageServer(const std::string& localIP, ImageSaveConfig saveConfig,
-                               uint16_t port, const std::string& username,
-                               const std::string& password) {
-    if (imageServer && imageServer->isRunning())
-        throw std::runtime_error("Image server is already running");
-
-    imageServer = std::make_unique<ImageServer>(port, username, password);
-    imageServer->start();
-
-    // Configure the scanner's FTP parameters to point at our server
-    setParam<CommParam::FTP_REMOTE_IP>(localIP);
-    setParam<CommParam::FTP_USER_NAME>(username);
-    setParam<CommParam::FTP_PASSWORD>(password);
-    setParam<CommParam::FTP_PASSIVE_MODE>(Toggle::ENABLE);
-
-    // Save current image saving destinations so we can restore on stop
-    savedImageDests = std::make_unique<SavedImageDests>();
-    savedImageDests->readOK = getParam<OperationParam::SAVE_DEST_READ_OK>();
-    savedImageDests->verificationNG = getParam<OperationParam::SAVE_DEST_VERIFICATION_NG>();
-    savedImageDests->readError = getParam<OperationParam::SAVE_DEST_READ_ERROR>();
-    savedImageDests->unstable = getParam<OperationParam::SAVE_DEST_UNSTABLE>();
-    savedImageDests->capture = getParam<OperationParam::SAVE_DEST_CAPTURE>();
-
-    // Set selected image types to SEND_BY_FTP
-    if (saveConfig.readOK)
-        setParam<OperationParam::SAVE_DEST_READ_OK>(ImageSavingDestination::SEND_BY_FTP);
-    if (saveConfig.verificationNG)
-        setParam<OperationParam::SAVE_DEST_VERIFICATION_NG>(ImageSavingDestination::SEND_BY_FTP);
-    if (saveConfig.readError)
-        setParam<OperationParam::SAVE_DEST_READ_ERROR>(ImageSavingDestination::SEND_BY_FTP);
-    if (saveConfig.unstable)
-        setParam<OperationParam::SAVE_DEST_UNSTABLE>(ImageSavingDestination::SEND_BY_FTP);
-    if (saveConfig.capture)
-        setParam<OperationParam::SAVE_DEST_CAPTURE>(ImageSavingDestination::SEND_BY_FTP);
-
-    // Communication settings (FTP IP, port, credentials) require a SAVE
-    // command before they take effect on the scanner.
-    saveSettings();
+Image Scanner::fetchImage(const std::string& remotePath) {
+    // The scanner's IP is available from the comm interface
+    std::string host = comm.getHost();
+    std::vector<uint8_t> data = FtpClient::downloadFile(host, 21, remotePath);
+    return decodeBMPFromMemory(data);
 }
 
-void Scanner::stopImageServer() {
-    if (imageServer) {
-        imageServer->stop();
-        imageServer.reset();
+Image Scanner::fetchLatestImage() {
+    std::string host = comm.getHost();
+    std::vector<std::string> files = FtpClient::listDirectory(host, 21, "/IMAGE");
+    if (files.empty()) {
+        throw std::runtime_error("No images found on scanner");
     }
+    // The last entry is the newest file (scanner stores chronologically)
+    std::string latest = files.back();
+    std::string ftpPath = "/IMAGE/" + latest;
+    spdlog::info("Downloading latest image from scanner: {}", ftpPath);
+    return fetchImage(ftpPath);
+}
 
-    // Restore previous image saving destinations
-    if (savedImageDests) {
-        setParam<OperationParam::SAVE_DEST_READ_OK>(savedImageDests->readOK);
-        setParam<OperationParam::SAVE_DEST_VERIFICATION_NG>(savedImageDests->verificationNG);
-        setParam<OperationParam::SAVE_DEST_READ_ERROR>(savedImageDests->readError);
-        setParam<OperationParam::SAVE_DEST_UNSTABLE>(savedImageDests->unstable);
-        setParam<OperationParam::SAVE_DEST_CAPTURE>(savedImageDests->capture);
-        savedImageDests.reset();
-        saveSettings();
+Image Scanner::captureSnapshot(int bank) {
+    std::string path = captureImage(bank);
+    // SHOT response path uses backslash (e.g. "A:\IMAGE\001_C_01.BMP")
+    // Convert to forward-slash FTP path and strip the drive letter
+    std::string ftpPath;
+    for (char c : path) {
+        if (c == '\\') {
+            ftpPath += '/';
+        } else {
+            ftpPath += c;
+        }
     }
-}
-
-Image Scanner::waitForImage() {
-    if (!imageServer || !imageServer->isRunning())
-        throw std::runtime_error("Image server is not running");
-    return imageServer->waitForImage();
-}
-
-bool Scanner::tryGetImage(Image& image) {
-    if (!imageServer || !imageServer->isRunning()) return false;
-    return imageServer->tryGetImage(image);
-}
-
-std::deque<Image> Scanner::getImages() {
-    if (!imageServer || !imageServer->isRunning()) return {};
-    return imageServer->getImages();
-}
-
-void Scanner::setImageCallback(std::function<void(const Image&)> cb) {
-    if (!imageServer) throw std::runtime_error("Image server has not been created yet");
-    imageServer->setImageCallback(std::move(cb));
+    // Strip drive letter prefix like "A:" if present
+    if (ftpPath.size() >= 2 && ftpPath[1] == ':') {
+        ftpPath = ftpPath.substr(2);
+    }
+    spdlog::info("Downloading image from scanner: {}", ftpPath);
+    return fetchImage(ftpPath);
 }
 
 std::string Scanner::checkResponse(const std::string& response) {

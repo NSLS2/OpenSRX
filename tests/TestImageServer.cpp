@@ -1,15 +1,12 @@
 #include <gtest/gtest.h>
 
-#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <thread>
 #include <vector>
 
 #include "OpenSRX/Image.hpp"
-#include "OpenSRX/ImageServer.hpp"
 
 namespace fs = std::filesystem;
 
@@ -17,63 +14,60 @@ namespace OpenSRX {
 
 // ── BMP helpers ─────────────────────────────────────────────────────────────
 
-/// Write a little-endian value into a buffer.
 template <typename T>
 static void writeLE(uint8_t* dst, T value) {
     for (size_t i = 0; i < sizeof(T); ++i) dst[i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
 }
 
 /// Generate a minimal valid BMP file in memory.
-/// Pixels are written bottom-to-top (standard BMP row order).
 static std::vector<uint8_t> makeBMP(int width, int height, int bitsPerPx,
                                     const std::vector<uint8_t>& pixelRows) {
     int rowBytes = width * (bitsPerPx / 8);
     int rowPadding = (4 - (rowBytes % 4)) % 4;
     int paddedRowBytes = rowBytes + rowPadding;
 
-    uint32_t paletteSize = (bitsPerPx == 8) ? 256 * 4 : 0;
-    uint32_t headerSize = 14 + 40 + paletteSize;
-    uint32_t imageSize = paddedRowBytes * height;
-    uint32_t fileSize = headerSize + imageSize;
+    int paletteSize = (bitsPerPx == 8) ? 256 * 4 : 0;
+    int pixelDataOffset = 14 + 40 + paletteSize;
+    int imageSize = paddedRowBytes * height;
+    int fileSize = pixelDataOffset + imageSize;
 
     std::vector<uint8_t> bmp(fileSize, 0);
+    uint8_t* p = bmp.data();
 
     // File header (14 bytes)
-    bmp[0] = 'B';
-    bmp[1] = 'M';
-    writeLE<uint32_t>(bmp.data() + 2, fileSize);
-    writeLE<uint32_t>(bmp.data() + 10, headerSize);
+    p[0] = 'B'; p[1] = 'M';
+    writeLE<uint32_t>(p + 2, fileSize);
+    writeLE<uint32_t>(p + 10, pixelDataOffset);
 
-    // DIB header (BITMAPINFOHEADER, 40 bytes)
-    writeLE<uint32_t>(bmp.data() + 14, 40);
-    writeLE<int32_t>(bmp.data() + 18, width);
-    writeLE<int32_t>(bmp.data() + 22, height);
-    writeLE<uint16_t>(bmp.data() + 26, 1);  // planes
-    writeLE<uint16_t>(bmp.data() + 28, bitsPerPx);
-    writeLE<uint32_t>(bmp.data() + 30, 0);  // compression = BI_RGB
+    // DIB header (40 bytes)
+    writeLE<uint32_t>(p + 14, 40);
+    writeLE<int32_t>(p + 18, width);
+    writeLE<int32_t>(p + 22, height);
+    writeLE<uint16_t>(p + 26, 1);
+    writeLE<uint16_t>(p + 28, bitsPerPx);
+    writeLE<uint32_t>(p + 34, imageSize);
 
-    // 8-bit grayscale palette
+    // Palette for 8-bit
     if (bitsPerPx == 8) {
+        uint8_t* palette = p + 54;
         for (int i = 0; i < 256; ++i) {
-            uint32_t off = 54 + i * 4;
-            bmp[off + 0] = static_cast<uint8_t>(i);  // B
-            bmp[off + 1] = static_cast<uint8_t>(i);  // G
-            bmp[off + 2] = static_cast<uint8_t>(i);  // R
-            bmp[off + 3] = 0;                        // reserved
+            palette[i * 4 + 0] = static_cast<uint8_t>(i);
+            palette[i * 4 + 1] = static_cast<uint8_t>(i);
+            palette[i * 4 + 2] = static_cast<uint8_t>(i);
+            palette[i * 4 + 3] = 0;
         }
     }
 
-    // Pixel data (caller supplies rows bottom-to-top, no padding)
+    // Pixel data (caller provides rows bottom-to-top, unpadded)
+    uint8_t* pixelDst = p + pixelDataOffset;
     for (int y = 0; y < height; ++y) {
-        size_t srcOff = static_cast<size_t>(y) * rowBytes;
-        size_t dstOff = headerSize + static_cast<size_t>(y) * paddedRowBytes;
-        std::memcpy(bmp.data() + dstOff, pixelRows.data() + srcOff, rowBytes);
+        const uint8_t* src = pixelRows.data() + y * rowBytes;
+        std::memcpy(pixelDst + y * paddedRowBytes, src, rowBytes);
     }
 
     return bmp;
 }
 
-/// Write raw bytes to a file.
 static void writeFile(const std::string& path, const std::vector<uint8_t>& data) {
     std::ofstream f(path, std::ios::binary);
     f.write(reinterpret_cast<const char*>(data.data()), data.size());
@@ -101,13 +95,9 @@ class TestBMPDecoder : public ::testing::Test {
 };
 
 TEST_F(TestBMPDecoder, Decode24Bit) {
-    // 2x2 image, BGR pixel data bottom-to-top:
-    //   bottom row: blue(0,0,255), green(0,255,0)
-    //   top row:    red(255,0,0), white(255,255,255)
-    // BMP stores bottom row first.
     std::vector<uint8_t> pixels = {
-        255, 0, 0,   0,   255, 0,    // bottom row: (B,G,R) = blue, green
-        0,   0, 255, 255, 255, 255,  // top row: red, white
+        255, 0, 0,   0,   255, 0,
+        0,   0, 255, 255, 255, 255,
     };
 
     auto bmpData = makeBMP(2, 2, 24, pixels);
@@ -120,8 +110,7 @@ TEST_F(TestBMPDecoder, Decode24Bit) {
     EXPECT_EQ(img.channels, 3);
     EXPECT_EQ(img.data.size(), 12u);
 
-    // After decoding, row 0 = top of image (was the second row in BMP)
-    // top row: red(0,0,255 in BGR), white(255,255,255)
+    // After decoding, row 0 = top (was second row in BMP)
     EXPECT_EQ(img.data[0], 0);
     EXPECT_EQ(img.data[1], 0);
     EXPECT_EQ(img.data[2], 255);
@@ -129,7 +118,6 @@ TEST_F(TestBMPDecoder, Decode24Bit) {
     EXPECT_EQ(img.data[4], 255);
     EXPECT_EQ(img.data[5], 255);
 
-    // bottom row: blue(255,0,0 in BGR), green(0,255,0)
     EXPECT_EQ(img.data[6], 255);
     EXPECT_EQ(img.data[7], 0);
     EXPECT_EQ(img.data[8], 0);
@@ -139,7 +127,6 @@ TEST_F(TestBMPDecoder, Decode24Bit) {
 }
 
 TEST_F(TestBMPDecoder, Decode8Bit) {
-    // 4x1 grayscale image
     std::vector<uint8_t> pixels = {0, 64, 128, 255};
     auto bmpData = makeBMP(4, 1, 8, pixels);
     std::string path = tmpDir + "/test8.bmp";
@@ -157,7 +144,6 @@ TEST_F(TestBMPDecoder, Decode8Bit) {
 }
 
 TEST_F(TestBMPDecoder, Decode32Bit) {
-    // 1x1 BGRA pixel
     std::vector<uint8_t> pixels = {10, 20, 30, 40};
     auto bmpData = makeBMP(1, 1, 32, pixels);
     std::string path = tmpDir + "/test32.bmp";
@@ -175,7 +161,6 @@ TEST_F(TestBMPDecoder, Decode32Bit) {
 }
 
 TEST_F(TestBMPDecoder, RowPaddingHandled) {
-    // 3x1 24-bit = 9 pixel bytes → padded to 12 bytes per row
     std::vector<uint8_t> pixels = {1, 2, 3, 4, 5, 6, 7, 8, 9};
     auto bmpData = makeBMP(3, 1, 24, pixels);
     std::string path = tmpDir + "/testpad.bmp";
@@ -198,185 +183,42 @@ TEST_F(TestBMPDecoder, InvalidFileThrows) {
     EXPECT_THROW(decodeBMP(path), std::runtime_error);
 }
 
-// ── ImageServer tests ───────────────────────────────────────────────────────
+// ── decodeBMPFromMemory tests ───────────────────────────────────────────────
 
-TEST(TestImageServer, StartsAndStops) {
-    ImageServer server(0);
-    EXPECT_FALSE(server.isRunning());
-
-    server.start();
-    EXPECT_TRUE(server.isRunning());
-    EXPECT_GT(server.getPort(), 0);
-    EXPECT_FALSE(server.getRootPath().empty());
-    EXPECT_TRUE(fs::exists(server.getRootPath()));
-
-    server.stop();
-    EXPECT_FALSE(server.isRunning());
-}
-
-TEST(TestImageServer, DoubleStartIsNoop) {
-    ImageServer server(0);
-    server.start();
-    uint16_t port1 = server.getPort();
-    server.start();  // should not throw or restart
-    EXPECT_EQ(server.getPort(), port1);
-    server.stop();
-}
-
-TEST(TestImageServer, DestructorCleansUp) {
-    std::string rootPath;
-    {
-        ImageServer server(0);
-        server.start();
-        rootPath = server.getRootPath();
-        EXPECT_TRUE(fs::exists(rootPath));
-    }
-    // Destructor should remove the temp dir
-    EXPECT_FALSE(fs::exists(rootPath));
-}
-
-TEST(TestImageServer, DetectsDroppedBMP) {
-    ImageServer server(0);
-    server.start();
-
-    // Create a 2x2 24-bit BMP and drop it into the server root
-    std::vector<uint8_t> pixels = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+TEST(TestBMPFromMemory, Decode24Bit) {
+    std::vector<uint8_t> pixels = {255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255};
     auto bmpData = makeBMP(2, 2, 24, pixels);
-    writeFile(server.getRootPath() + "/image001.bmp", bmpData);
 
-    // Wait for the watcher to pick it up (with timeout)
-    Image img;
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    bool got = false;
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (server.tryGetImage(img)) {
-            got = true;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-
-    ASSERT_TRUE(got) << "Timed out waiting for image";
+    Image img = decodeBMPFromMemory(bmpData);
     EXPECT_EQ(img.width, 2);
     EXPECT_EQ(img.height, 2);
     EXPECT_EQ(img.channels, 3);
-
-    server.stop();
+    EXPECT_EQ(img.data.size(), 12u);
 }
 
-TEST(TestImageServer, WaitForImageBlocks) {
-    ImageServer server(0);
-    server.start();
+TEST(TestBMPFromMemory, Decode8Bit) {
+    std::vector<uint8_t> pixels = {10, 20, 30, 40};
+    auto bmpData = makeBMP(4, 1, 8, pixels);
 
-    // Drop a BMP after a short delay from another thread
-    std::vector<uint8_t> pixels = {100, 200, 50};
-    auto bmpData = makeBMP(1, 1, 24, pixels);
-
-    std::thread writer([&] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        writeFile(server.getRootPath() + "/delayed.bmp", bmpData);
-    });
-
-    Image img = server.waitForImage();
-    writer.join();
-
-    EXPECT_EQ(img.width, 1);
+    Image img = decodeBMPFromMemory(bmpData);
+    EXPECT_EQ(img.width, 4);
     EXPECT_EQ(img.height, 1);
-    EXPECT_EQ(img.data[0], 100);
-    EXPECT_EQ(img.data[1], 200);
-    EXPECT_EQ(img.data[2], 50);
-
-    server.stop();
+    EXPECT_EQ(img.channels, 1);
+    ASSERT_EQ(img.data.size(), 4u);
+    EXPECT_EQ(img.data[0], 10);
+    EXPECT_EQ(img.data[3], 40);
 }
 
-TEST(TestImageServer, CallbackInvokedOnImage) {
-    ImageServer server(0);
-
-    bool callbackFired = false;
-    int cbWidth = 0;
-    server.setImageCallback([&](const Image& img) {
-        callbackFired = true;
-        cbWidth = img.width;
-    });
-
-    server.start();
-
-    std::vector<uint8_t> pixels = {1, 2, 3, 4, 5, 6};
-    auto bmpData = makeBMP(2, 1, 24, pixels);
-    writeFile(server.getRootPath() + "/cb_test.bmp", bmpData);
-
-    // Wait for callback
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    while (!callbackFired && std::chrono::steady_clock::now() < deadline)
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    EXPECT_TRUE(callbackFired);
-    EXPECT_EQ(cbWidth, 2);
-
-    server.stop();
-}
-
-TEST(TestImageServer, MultipleImagesReceived) {
-    ImageServer server(0);
-    server.start();
-
-    // Drop two BMPs
-    std::vector<uint8_t> px1 = {10, 20, 30};
-    std::vector<uint8_t> px2 = {40, 50, 60};
-    writeFile(server.getRootPath() + "/img1.bmp", makeBMP(1, 1, 24, px1));
-    writeFile(server.getRootPath() + "/img2.bmp", makeBMP(1, 1, 24, px2));
-
-    // Use waitForImage to reliably get both images
-    Image img1 = server.waitForImage();
-    Image img2 = server.waitForImage();
-
-    EXPECT_EQ(img1.width, 1);
-    EXPECT_EQ(img2.width, 1);
-
-    server.stop();
-}
-
-TEST(TestImageServer, IgnoresNonBMPFiles) {
-    ImageServer server(0);
-    server.start();
-
-    // Write a .txt file – should be ignored
-    std::ofstream(server.getRootPath() + "/readme.txt") << "not an image";
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    Image img;
-    EXPECT_FALSE(server.tryGetImage(img));
-
-    server.stop();
-}
-
-TEST(TestImageServer, SubdirectoryImagesDetected) {
-    ImageServer server(0);
-    server.start();
-
-    // Create a subfolder and drop a BMP in it
-    std::string subdir = server.getRootPath() + "/subfolder";
-    fs::create_directories(subdir);
-
+TEST(TestBMPFromMemory, TruncatedDataThrows) {
     std::vector<uint8_t> pixels = {1, 2, 3};
-    writeFile(subdir + "/nested.bmp", makeBMP(1, 1, 24, pixels));
+    auto bmpData = makeBMP(1, 1, 24, pixels);
+    bmpData.resize(bmpData.size() - 10);  // truncate
+    EXPECT_THROW(decodeBMPFromMemory(bmpData), std::runtime_error);
+}
 
-    Image img;
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    bool got = false;
-    while (std::chrono::steady_clock::now() < deadline) {
-        if (server.tryGetImage(img)) {
-            got = true;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-
-    ASSERT_TRUE(got);
-    EXPECT_EQ(img.width, 1);
-
-    server.stop();
+TEST(TestBMPFromMemory, InvalidHeaderThrows) {
+    std::vector<uint8_t> bad = {0, 0, 0, 0};
+    EXPECT_THROW(decodeBMPFromMemory(bad), std::runtime_error);
 }
 
 }  // namespace OpenSRX

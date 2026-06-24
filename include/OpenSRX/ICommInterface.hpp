@@ -78,6 +78,15 @@ class ICommInterface {
     virtual std::string describe() const = 0;
 
     /**
+     * @brief Return the host/IP of the connected scanner.
+     * @return The scanner's IP address or hostname.
+     * @throws std::runtime_error if the interface has no network host.
+     */
+    virtual std::string getHost() const {
+        throw std::runtime_error("getHost() not supported on this interface");
+    }
+
+    /**
      * @brief Set the communication framing format.
      * @param format The CommFormat to use.
      */
