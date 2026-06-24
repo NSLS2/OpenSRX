@@ -235,7 +235,6 @@ void Scanner::startImageServer(const std::string& localIP, ImageSaveConfig saveC
     setParam<CommParam::FTP_REMOTE_IP>(localIP);
     setParam<CommParam::FTP_USER_NAME>(username);
     setParam<CommParam::FTP_PASSWORD>(password);
-    setParam<CommParam::FTP_REMOTE_PORT>(static_cast<int>(imageServer->getPort()));
     setParam<CommParam::FTP_PASSIVE_MODE>(Toggle::ENABLE);
 
     // Save current image saving destinations so we can restore on stop

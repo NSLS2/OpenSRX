@@ -313,7 +313,7 @@ class Scanner {
      * @param password    FTP password.
      */
     void startImageServer(const std::string& localIP, ImageSaveConfig saveConfig = {},
-                          uint16_t port = 0, const std::string& username = "opensrx",
+                          uint16_t port = 21, const std::string& username = "opensrx",
                           const std::string& password = "opensrx");
 
     /** Stop the embedded FTP image server. */

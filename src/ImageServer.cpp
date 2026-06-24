@@ -30,10 +30,11 @@ ImageServer::ImageServer(uint16_t port, const std::string& username, const std::
 ImageServer::~ImageServer() {
     stop();
 
-    // Clean up temporary directory
-    std::error_code ec;
-    fs::remove_all(rootPath, ec);
-    if (ec) spdlog::warn("ImageServer: failed to remove {}: {}", rootPath, ec.message());
+    // TODO: re-enable cleanup after debugging
+    // std::error_code ec;
+    // fs::remove_all(rootPath, ec);
+    // if (ec) spdlog::warn("ImageServer: failed to remove {}: {}", rootPath, ec.message());
+    spdlog::info("ImageServer: raw files preserved in {}", rootPath);
 }
 
 void ImageServer::start() {
@@ -127,13 +128,14 @@ void ImageServer::watchDirectory() {
 
             // Check that the file isn't still being written (size must be stable)
             auto size1 = fs::file_size(path, ec);
-            if (ec) continue;
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            if (ec || size1 == 0) continue;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             auto size2 = fs::file_size(path, ec);
-            if (ec || size1 != size2 || size1 == 0) continue;
+            if (ec || size1 != size2) continue;
 
             try {
                 Image img = decodeBMP(pathStr);
+                spdlog::info("ImageServer: received {}", pathStr);
                 spdlog::debug("ImageServer: decoded {} ({}x{}, {} ch)", pathStr, img.width,
                               img.height, img.channels);
 
@@ -148,7 +150,9 @@ void ImageServer::watchDirectory() {
                 queueCV.notify_one();
 
             } catch (const std::exception& e) {
-                spdlog::warn("ImageServer: failed to decode {}: {}", pathStr, e.what());
+                // File may still be incomplete — will retry next iteration
+                spdlog::debug("ImageServer: decode attempt for {} failed, will retry: {}",
+                              pathStr, e.what());
             }
         }
     }
