@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include <jpeglib.h>
+
 namespace OpenSRX {
 
 // ── BMP header helpers (little-endian) ──────────────────────────────────────
@@ -97,6 +99,64 @@ Image decodeBMP(const std::string& path) {
         std::memcpy(img.data.data() + static_cast<size_t>(destRow) * rowBytes, rowBuf.data(),
                     rowBytes);
     }
+
+    return img;
+}
+
+Image decodeJPEG(const std::string& path, bool decompress) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) throw std::runtime_error("Cannot open JPEG file: " + path);
+
+    auto fileSize = file.tellg();
+    file.seekg(0);
+    std::vector<uint8_t> fileData(static_cast<size_t>(fileSize));
+    file.read(reinterpret_cast<char*>(fileData.data()), fileSize);
+    if (!file) throw std::runtime_error("Failed to read JPEG file: " + path);
+
+    struct jpeg_decompress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+
+    cinfo.err = jpeg_std_error(&jerr);
+    jerr.error_exit = [](j_common_ptr cinfo) {
+        char msg[JMSG_LENGTH_MAX];
+        cinfo->err->format_message(cinfo, msg);
+        jpeg_destroy(cinfo);
+        throw std::runtime_error(std::string("JPEG error: ") + msg);
+    };
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_mem_src(&cinfo, fileData.data(), fileData.size());
+
+    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
+        jpeg_destroy_decompress(&cinfo);
+        throw std::runtime_error("Invalid JPEG header: " + path);
+    }
+
+    Image img;
+    img.width = static_cast<int>(cinfo.image_width);
+    img.height = static_cast<int>(cinfo.image_height);
+    img.channels = static_cast<int>(cinfo.num_components);
+
+    if (!decompress) {
+        jpeg_destroy_decompress(&cinfo);
+        img.compressed = true;
+        img.data = std::move(fileData);
+        return img;
+    }
+
+    jpeg_start_decompress(&cinfo);
+
+    int rowStride = cinfo.output_width * cinfo.output_components;
+    img.channels = static_cast<int>(cinfo.output_components);
+    img.data.resize(static_cast<size_t>(rowStride) * cinfo.output_height);
+
+    while (cinfo.output_scanline < cinfo.output_height) {
+        uint8_t* row = img.data.data() + cinfo.output_scanline * rowStride;
+        jpeg_read_scanlines(&cinfo, &row, 1);
+    }
+
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
 
     return img;
 }

@@ -224,11 +224,11 @@ void Scanner::clearPLCLinkError() { checkResponse(comm.sendCommand("PCLR")); }
 
 void Scanner::startImageServer(const std::string& localIP, ImageSaveConfig saveConfig,
                                uint16_t port, const std::string& username,
-                               const std::string& password) {
+                               const std::string& password, bool decompressJPEG) {
     if (imageServer && imageServer->isRunning())
         throw std::runtime_error("Image server is already running");
 
-    imageServer = std::make_unique<ImageServer>(port, username, password);
+    imageServer = std::make_unique<ImageServer>(port, username, password, decompressJPEG);
     imageServer->start();
 
     // Configure the scanner's FTP parameters to point at our server

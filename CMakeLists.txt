@@ -37,6 +37,12 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
+FetchContent_Declare(
+    libjpeg_turbo
+    URL https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.1.0.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
 FetchContent_GetProperties(asio)
 if(NOT asio_POPULATED)
     if(POLICY CMP0169)
@@ -58,6 +64,26 @@ if(NOT fineftp_POPULATED)
     set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(${fineftp_SOURCE_DIR} ${fineftp_BINARY_DIR} EXCLUDE_FROM_ALL)
     set(BUILD_SHARED_LIBS ${_saved_BUILD_SHARED_LIBS})
+endif()
+
+# Build libjpeg-turbo as a static library.
+# libjpeg-turbo blocks add_subdirectory() with a guard check; patch it out
+# so we can build it inline via FetchContent.
+set(ENABLE_SHARED OFF CACHE BOOL "" FORCE)
+set(ENABLE_STATIC ON CACHE BOOL "" FORCE)
+set(WITH_TURBOJPEG OFF CACHE BOOL "" FORCE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+FetchContent_GetProperties(libjpeg_turbo)
+if(NOT libjpeg_turbo_POPULATED)
+    FetchContent_Populate(libjpeg_turbo)
+    # Remove the add_subdirectory() guard
+    file(READ "${libjpeg_turbo_SOURCE_DIR}/CMakeLists.txt" _ljt_cmake)
+    string(REPLACE
+        "if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)\n  message(FATAL_ERROR"
+        "if(FALSE)\n  message(FATAL_ERROR"
+        _ljt_cmake "${_ljt_cmake}")
+    file(WRITE "${libjpeg_turbo_SOURCE_DIR}/CMakeLists.txt" "${_ljt_cmake}")
+    add_subdirectory(${libjpeg_turbo_SOURCE_DIR} ${libjpeg_turbo_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
 add_library(asio_headers INTERFACE)

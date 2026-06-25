@@ -13,8 +13,9 @@ namespace fs = std::filesystem;
 
 namespace OpenSRX {
 
-ImageServer::ImageServer(uint16_t port, const std::string& username, const std::string& password)
-    : port(port), username(username), password(password) {
+ImageServer::ImageServer(uint16_t port, const std::string& username, const std::string& password,
+                         bool decompressJPEG)
+    : port(port), username(username), password(password), decompressJPEG(decompressJPEG) {
     // Create a temporary directory for FTP file storage
     std::string tmpl = (fs::temp_directory_path() / "opensrx-ftp-XXXXXX").string();
     std::vector<char> buf(tmpl.begin(), tmpl.end());
@@ -120,10 +121,10 @@ void ImageServer::watchDirectory() {
             // Already decoded this file
             if (processed.count(pathStr)) continue;
 
-            // Only handle .bmp files
+            // Only handle .bmp and .jpg/.jpeg files
             std::string ext = path.extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            if (ext != ".bmp") continue;
+            if (ext != ".bmp" && ext != ".jpg" && ext != ".jpeg") continue;
 
             // Check that the file isn't still being written (size must be stable)
             auto size1 = fs::file_size(path, ec);
@@ -133,9 +134,15 @@ void ImageServer::watchDirectory() {
             if (ec || size1 != size2 || size1 == 0) continue;
 
             try {
-                Image img = decodeBMP(pathStr);
-                spdlog::debug("ImageServer: decoded {} ({}x{}, {} ch)", pathStr, img.width,
-                              img.height, img.channels);
+                Image img;
+                if (ext == ".bmp") {
+                    img = decodeBMP(pathStr);
+                } else {
+                    img = decodeJPEG(pathStr, decompressJPEG);
+                }
+                spdlog::debug("ImageServer: decoded {} ({}x{}, {} ch{})", pathStr, img.width,
+                              img.height, img.channels,
+                              img.compressed ? ", compressed" : "");
 
                 processed.insert(pathStr);
 

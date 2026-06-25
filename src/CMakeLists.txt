@@ -21,6 +21,8 @@ target_link_libraries(OpenSRX
         asio::asio
         spdlog::spdlog_header_only
         fineftp::server
+    PRIVATE
+        jpeg-static
 )
 
 target_include_directories(OpenSRX
@@ -28,6 +30,8 @@ target_include_directories(OpenSRX
         ${PROJECT_SOURCE_DIR}/include
     PRIVATE
         ${OPENSRX_GENERATED_INCLUDE_DIR}
+        ${libjpeg_turbo_SOURCE_DIR}/src
+        ${libjpeg_turbo_BINARY_DIR}/src
 )
 
 if(NOT BUILD_STATIC_LIB)

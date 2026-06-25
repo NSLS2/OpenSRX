@@ -305,16 +305,20 @@ class Scanner {
      * SEND_BY_FTP; they are restored to their previous values when
      * stopImageServer() is called.
      *
-     * @param localIP     The IP address of this machine as reachable from the
-     *                    scanner (e.g. "192.168.1.100").
-     * @param saveConfig  Which image types to send via FTP (default: read OK only).
-     * @param port        FTP port (0 = OS picks a free port).
-     * @param username    FTP username.
-     * @param password    FTP password.
+     * @param localIP         The IP address of this machine as reachable from the
+     *                        scanner (e.g. "192.168.1.100").
+     * @param saveConfig      Which image types to send via FTP (default: read OK only).
+     * @param port            FTP port (0 = OS picks a free port).
+     * @param username        FTP username.
+     * @param password        FTP password.
+     * @param decompressJPEG  If true (default), JPEG images are decompressed
+     *                        into raw pixels. If false, Image::data holds the
+     *                        compressed JPEG bytes.
      */
     void startImageServer(const std::string& localIP, ImageSaveConfig saveConfig = {},
                           uint16_t port = 0, const std::string& username = "opensrx",
-                          const std::string& password = "opensrx");
+                          const std::string& password = "opensrx",
+                          bool decompressJPEG = true);
 
     /** Stop the embedded FTP image server. */
     void stopImageServer();

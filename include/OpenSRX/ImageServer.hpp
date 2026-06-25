@@ -30,12 +30,15 @@ class ImageServer {
     /**
      * @brief Construct (but do not start) the image server.
      *
-     * @param port       FTP port to listen on (0 = OS picks a free port).
-     * @param username   FTP username the scanner will log in with.
-     * @param password   FTP password the scanner will log in with.
+     * @param port           FTP port to listen on (0 = OS picks a free port).
+     * @param username       FTP username the scanner will log in with.
+     * @param password       FTP password the scanner will log in with.
+     * @param decompressJPEG If true (default), JPEG images are decompressed
+     *                       into raw pixels. If false, Image::data holds the
+     *                       compressed JPEG bytes.
      */
     ImageServer(uint16_t port = 0, const std::string& username = "opensrx",
-                const std::string& password = "opensrx");
+                const std::string& password = "opensrx", bool decompressJPEG = true);
 
     ~ImageServer();
 
@@ -99,6 +102,7 @@ class ImageServer {
     std::string username;
     std::string password;
     std::string rootPath;
+    bool decompressJPEG;
 
     std::unique_ptr<fineftp::FtpServer> ftpServer;
 
